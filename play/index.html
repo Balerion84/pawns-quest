@@ -6760,4 +6760,21 @@ if (window.PUBLIC_EDITION && $("#about-btn")){
     .observe(document.body, {subtree:true, attributes:true, attributeFilter:["class"], childList:true, characterData:true}); })();
 </script>
 
+<script>
+(function(){
+  function addHome(){
+    var bar = document.querySelector("header .playerbar");
+    if (!bar || document.getElementById("web-home-btn")) return;
+    var a = document.createElement("a");
+    a.id = "web-home-btn";
+    a.href = "../";
+    var en = !!(window.I18N && window.I18N.isEn && window.I18N.isEn());
+    a.textContent = en ? "← Home" : "← Hlavná stránka";
+    a.style.cssText = "display:inline-flex;align-items:center;padding:5px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:.82rem;font-weight:700;text-decoration:none;white-space:nowrap";
+    bar.insertBefore(a, bar.firstChild);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", addHome);
+  else addHome();
+})();
+</script>
 </body></html>
