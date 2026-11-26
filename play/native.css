@@ -1,0 +1,19 @@
+/* Úpravy vzhľadu len pre natívne aplikácie (app-src sa nemení).
+   Selektory majú vyššiu špecificitu než pravidlá v index.html, aby platili bez ohľadu na poradie. */
+
+/* Okno ⚙️ Nastavenia: v index.html je zarovnané na pravý okraj tlačidla (right:0). V mobile sa tlačidlo
+   často zalomí na ľavý okraj obrazovky a okno potom vyčnievalo doľava mimo obrazovky.
+   Na úzkej obrazovke ho preto ukotvíme k celému bloku hráča (.profile začína pri ľavom okraji stránky):
+   okno sa otvorí pod ním, zarovnané vľavo a nikdy nie je širšie ako obrazovka. */
+@media (max-width: 700px) {
+  .top .profile { position: relative; }
+  .profile .sfxwrap { position: static; }
+  .sfxwrap #sfx-pop {
+    left: 0;
+    right: auto;
+    min-width: 250px;
+    width: max-content;
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
+  }
+}
