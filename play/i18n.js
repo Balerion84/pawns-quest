@@ -835,6 +835,9 @@
     if (typeof window.I18N_APPLY_STORY === "function") {
       try { window.I18N_APPLY_STORY(); } catch (e) {}
     }
+    if (typeof window.I18N_APPLY_CONTENT === "function") {
+      try { window.I18N_APPLY_CONTENT(); } catch (e) {}
+    }
   }
 
   function mountLangSwitcher() {

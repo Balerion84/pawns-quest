@@ -93,6 +93,13 @@ button:disabled{opacity:.5;cursor:default}
 .main{display:grid;grid-template-columns:minmax(0,520px) minmax(0,1fr);gap:18px;align-items:start}
 .boardcol{display:flex;flex-direction:column;gap:10px;min-width:0}
 .boardrow{display:flex;gap:8px;position:relative}
+.capbar{display:flex;align-items:center;flex-wrap:wrap;gap:1px 3px;min-height:22px;padding:1px 4px 1px 22px;font-size:18px;line-height:1;user-select:none}
+.capbar[hidden]{display:none}
+.capbar .pc{font-size:19px;line-height:1;margin-right:-2px}
+.capbar .pc.w{-webkit-text-stroke:1px var(--pc-stroke)}
+.capbar .pc.b{-webkit-text-stroke:.4px var(--pc-stroke)}
+.capbar .cap-grp{display:inline-flex;align-items:center;margin-right:4px}
+.capbar .cap-adv{font-family:var(--f-mono);font-size:.78rem;font-weight:700;color:var(--muted);margin-left:4px}
 .promo{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(17,22,28,.45);border-radius:6px}
 .promo-box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 .promo-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
@@ -704,10 +711,12 @@ button.big{font-size:1.15rem;padding:12px 28px;margin:6px 0 14px}
   <!-- šachovnica + bočný panel -->
   <section class="main" id="v-board">
     <div class="boardcol">
+      <div class="capbar" id="cap-top" hidden></div>
       <div class="boardrow">
         <div class="evalbar" id="evalbar" title="Hodnotenie pozície"><i style="height:50%"></i></div>
         <div class="board" id="board"></div>
       </div>
+      <div class="capbar" id="cap-bot" hidden></div>
       <div class="boardhud" id="board-hud" hidden></div>
       <div class="nav" id="nav">
         <button data-nav="start" aria-label="Začiatok">|◀</button>
@@ -1160,6 +1169,7 @@ button.big{font-size:1.15rem;padding:12px 28px;margin:6px 0 14px}
 <script src="sezona2.js"></script>
 <script src="putovanie.js"></script>
 <script src="i18n-story.js"></script>
+<script src="i18n-content.js"></script>
 <script src="i18n.js"></script>
 <script>
 "use strict";
@@ -1327,9 +1337,17 @@ async function evalFen(fen, depth){
 }
 
 /* ================= rozbor ================= */
-const CLS_LABEL = {blunder:"hrubá chyba", mistake:"chyba", inacc:"nepresnosť"};
+const _isEn = () => !!(window.I18N && window.I18N.isEn());
+const CLS_LABEL = _isEn() ? {blunder:"blunder", mistake:"mistake", inacc:"inaccuracy"} : {blunder:"hrubá chyba", mistake:"chyba", inacc:"nepresnosť"};
 const CLS_GLYPH = {blunder:"??", mistake:"?", inacc:"?!"};
-const MOTIF = {
+const MOTIF = _isEn() ? {
+  allowmate:{t:"Allowed mate", tip:"Before every move, check your king: can your opponent give check or checkmate?"},
+  missmate:{t:"Missed mate", tip:"In every position, check all checks first. Checkmate often hides behind a check."},
+  hanging:{t:"Hanging piece", tip:"When moving a piece, ask: will it be defended on the new square? Who can capture it?"},
+  threat:{t:"Missed threat", tip:"After every opponent move, ask: What is the threat? What did they attack?"},
+  misstactic:{t:"Missed tactic", tip:"Before moving, scan checks – captures – threats. Your opponent often leaves something for free."},
+  positional:{t:"Inaccurate move", tip:"Stick to the basics: develop pieces, castle, control the center, and coordinate your pieces."}
+} : {
   allowmate:{t:"Dovolil mat", tip:"Pred každým ťahom pozri na svojho kráľa: môže mi súper dať šach alebo mat?"},
   missmate:{t:"Prehliadnutý mat", tip:"V každej pozícii najprv skontroluj všetky šachy. Mat sa často skrýva za šachom."},
   hanging:{t:"Nekrytá figúrka", tip:"Keď ťaháš figúrkou, spýtaj sa: bude na novom poli krytá? Kto ju môže zobrať?"},
@@ -1337,7 +1355,7 @@ const MOTIF = {
   misstactic:{t:"Nevyužitá taktika", tip:"Pred ťahom prejdi šachy – brania – hrozby. Súper ti často nechá niečo zadarmo."},
   positional:{t:"Slabší ťah", tip:"Drž sa princípov: vývin figúrok, rošáda, stred a spolupráca figúrok."}
 };
-const PHASE = {open:"Otvorenie (do 10. ťahu)", mid:"Stredná hra", end:"Koncovka"};
+const PHASE = _isEn() ? {open:"Opening (up to move 10)", mid:"Middlegame", end:"Endgame"} : {open:"Otvorenie (do 10. ťahu)", mid:"Stredná hra", end:"Koncovka"};
 
 function classify(G, A){
   const out = [];
@@ -1358,40 +1376,51 @@ function classify(G, A){
 }
 /* rozbor jedného chybného ťahu: text + motív */
 function inspect(G, A, C, i){
+  const en = _isEn();
   const m = G.moves[i], a = A[i], b = A[i+1], c = C[i];
   const me = sk(m.san), parts = [];
   let motif = "positional", lost = null;
   if (c.missedMate && a.best){
     motif = "missmate";
-    parts.push(`Bol tu mat v ${a.score.mate}! Správne bolo ${sanLine(G.fens[i], a.pv, a.score.mate*2-1)}.`);
+    parts.push(en ? `There was mate in ${a.score.mate}! Best was ${sanLine(G.fens[i], a.pv, a.score.mate*2-1)}.`
+      : `Bol tu mat v ${a.score.mate}! Správne bolo ${sanLine(G.fens[i], a.pv, a.score.mate*2-1)}.`);
   }
   if (b.score.mate != null && b.score.mate > 0){
     motif = "allowmate";
-    parts.push(`Po ${me} má súper mat v ${b.score.mate}: ${sanLine(G.fens[i+1], b.pv, b.score.mate*2-1)}.`);
+    parts.push(en ? `After ${me}, opponent has mate in ${b.score.mate}: ${sanLine(G.fens[i+1], b.pv, b.score.mate*2-1)}.`
+      : `Po ${me} má súper mat v ${b.score.mate}: ${sanLine(G.fens[i+1], b.pv, b.score.mate*2-1)}.`);
   } else if (b.best){
     const reply = new Chess(G.fens[i+1]).move(uciObj(b.best));
     const loss = -matGain(G.fens[i+1], b.pv, m.color, 4);
     if (reply && loss >= 1){
-      const what = loss >= 9 ? "dámu" : loss >= 5 ? "vežu" : loss >= 3 ? "figúrku" : loss >= 2 ? "materiál" : "pešiaka";
+      const what = en ? (loss >= 9 ? "the queen" : loss >= 5 ? "a rook" : loss >= 3 ? "a piece" : loss >= 2 ? "material" : "a pawn")
+        : (loss >= 9 ? "dámu" : loss >= 5 ? "vežu" : loss >= 3 ? "figúrku" : loss >= 2 ? "materiál" : "pešiaka");
       const hanging = reply.captured && reply.to === m.to;
       const fem = m.piece === "q" || m.piece === "r";
       if (motif === "positional") motif = hanging ? "hanging" : "threat";
       lost = hanging ? m.piece : (reply.captured || null);
-      parts.push(hanging
-        ? `${NAME[m.piece][0].toUpperCase() + NAME[m.piece].slice(1)} na ${m.to} zostal${fem ? "a nekrytá" : " nekrytý"}. Súper zahrá ${sk(reply.san)} a získa ${what}.`
-        : `Súper odpovie ${sk(reply.san)} a získa ${what}.`);
+      if (en) {
+        const pn = EN_PC[m.piece];
+        parts.push(hanging
+          ? `The ${pn} on ${m.to} was left undefended. Opponent plays ${sk(reply.san)} and wins ${what}.`
+          : `Opponent replies ${sk(reply.san)} and wins ${what}.`);
+      } else {
+        parts.push(hanging
+          ? `${NAME[m.piece][0].toUpperCase() + NAME[m.piece].slice(1)} na ${m.to} zostal${fem ? "a nekrytá" : " nekrytý"}. Súper zahrá ${sk(reply.san)} a získa ${what}.`
+          : `Súper odpovie ${sk(reply.san)} a získa ${what}.`);
+      }
     }
   }
   if (a.best && !c.missedMate){
     const bm = new Chess(G.fens[i]).move(uciObj(a.best));
     if (motif === "positional" && matGain(G.fens[i], a.pv, m.color, 4) >= 2) motif = "misstactic";
-    let t = `Lepšie bolo ${sk(bm.san)}`;
-    if (bm.captured) t += ` – berie ${ACC[bm.captured]}`;
-    else if (bm.san.includes("+")) t += " so šachom";
-    t += `. Pokračovanie: ${sanLine(G.fens[i], a.pv, 4)}.`;
+    let t = (en ? "Better was " : "Lepšie bolo ") + sk(bm.san);
+    if (bm.captured) t += en ? ` – captures the ${EN_PC[bm.captured]}` : ` – berie ${ACC[bm.captured]}`;
+    else if (bm.san.includes("+")) t += en ? " with check" : " so šachom";
+    t += (en ? `. Continuation: ` : `. Pokračovanie: `) + `${sanLine(G.fens[i], a.pv, 4)}.`;
     parts.push(t);
   }
-  parts.push(`Hodnotenie: ${fmtEval(a.score, G.fens[i].split(" ")[1])} → ${fmtEval(b.score, G.fens[i+1].split(" ")[1])}.`);
+  parts.push(`${en ? "Eval" : "Hodnotenie"}: ${fmtEval(a.score, G.fens[i].split(" ")[1])} → ${fmtEval(b.score, G.fens[i+1].split(" ")[1])}.`);
   return {text: parts.join(" "), motif, lost, phase: phaseOf(G.fens[i], m.no)};
 }
 /* presnosť ako na Lichess: priemer váženého priemeru (váha = rozkolísanosť pozície)
@@ -1472,6 +1501,39 @@ function drawBoard(el, fen, o = {}){
     html += `<polygon points="${x2},${y2} ${ex+px},${ey+py} ${ex-px},${ey-py}" style="fill:var(--${a.color})" opacity=".85"/>`;
   }
   el.innerHTML = html + "</svg>";
+  if (el.id === "board") renderCaptured(fen, orient, !!o.captured);
+}
+function renderCaptured(fen, orient, show){
+  const topEl = $("#cap-top"), botEl = $("#cap-bot");
+  if (!topEl || !botEl) return;
+  if (!show){ topEl.hidden = botEl.hidden = true; topEl.innerHTML = botEl.innerHTML = ""; return; }
+  const BASE = {q:1, r:2, b:2, n:2, p:8}, MVAL = {q:9, r:5, b:3, n:3, p:1}, ORD = ["q","r","b","n","p"];
+  const on = {w:{q:0,r:0,b:0,n:0,p:0}, b:{q:0,r:0,b:0,n:0,p:0}};
+  let matW = 0, matB = 0;
+  for (const ch of (fen || "").split(" ")[0]){
+    const lo = ch.toLowerCase();
+    if (!(lo in BASE)) continue;
+    const col = ch === lo ? "b" : "w";
+    on[col][lo]++;
+    if (col === "w") matW += MVAL[lo]; else matB += MVAL[lo];
+  }
+  const makeBar = (captor) => {
+    const victim = captor === "w" ? "b" : "w";
+    let h = "";
+    for (const t of ORD){
+      const n = Math.max(0, BASE[t] - on[victim][t]);
+      if (!n) continue;
+      h += `<span class="cap-grp">${`<span class="pc ${victim}">${GLYPH[t]}</span>`.repeat(n)}</span>`;
+    }
+    const adv = captor === "w" ? matW - matB : matB - matW;
+    if (adv > 0) h += `<span class="cap-adv">+${adv}</span>`;
+    return h;
+  };
+  const topColor = orient === "w" ? "b" : "w", botColor = orient === "w" ? "w" : "b";
+  const topH = makeBar(topColor), botH = makeBar(botColor);
+  if (!topH && !botH){ topEl.hidden = botEl.hidden = true; topEl.innerHTML = botEl.innerHTML = ""; return; }
+  topEl.innerHTML = topH; botEl.innerHTML = botH;
+  topEl.hidden = false; botEl.hidden = false;
 }
 const setEvalBar = pct => {
   const i = $("#evalbar>i"), flip = (S.tab === "an" && S.orient === "b") || (S.tab === "play" && PL && PL.color === "b") || (S.tab === "ana" && AN && AN.orient === "b") || (S.tab === "study" && ST && ST.orient === "b");
@@ -1669,7 +1731,9 @@ function loadPreview(){
   if (!S.gid) fillFromHeaders(G);
   S.orient = F("color").value;
   renderAnalysis(); go(S.ply);
-  msg(S.gid ? "Ťahy sa zmenili. Stlač Analyzovať a uložiť, aby sa rozbor aktualizoval." : `Načítané: ${G.moves.length} polťahov. Stlač Analyzovať a uložiť.`);
+  const en = _isEn();
+  msg(S.gid ? (en ? "Moves changed. Click Analyze & save to update the review." : "Ťahy sa zmenili. Stlač Analyzovať a uložiť, aby sa rozbor aktualizoval.")
+    : (en ? `Loaded: ${G.moves.length} half-moves. Click Analyze & save.` : `Načítané: ${G.moves.length} polťahov. Stlač Analyzovať a uložiť.`));
 }
 
 async function analyse(){
@@ -1756,11 +1820,11 @@ function renderOpeningBox(el, fens){
   el.hidden = false;
   if (el.dataset.op === key) return;
   el.dataset.op = key;
-  const p = op.plan;
+  const p = op.plan, en = _isEn();
   el.innerHTML = `<summary>📖 ${esc(op.eco)} · ${esc(op.name)}</summary>`
     + (p ? `<p class="op-idea">${esc(p.idea)}</p><div class="op-plans">
-      <div class="op-side"><b>Plán pre bieleho</b><ul>${p.w.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
-      <div class="op-side"><b>Plán pre čierneho</b><ul>${p.b.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+      <div class="op-side"><b>${en ? "Plan for White" : "Plán pre bieleho"}</b><ul>${p.w.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+      <div class="op-side"><b>${en ? "Plan for Black" : "Plán pre čierneho"}</b><ul>${p.b.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
     </div>` : "");
 }
 function renderPosition(){
@@ -1779,12 +1843,13 @@ function renderPosition(){
       try { const w = explainMove(p-1); if (w) w.arrows.forEach(a => arrows.push({...a, color:"chart"})); } catch(e){}
     }
   }
-  drawBoard($("#board"), G.fens[p], {orient:S.orient, hl, arrows});
+  drawBoard($("#board"), G.fens[p], {orient:S.orient, hl, arrows, captured:true});
   const turn = G.fens[p].split(" ")[1];
   setEvalBar(S.A && S.A[p] ? winp(whiteCp(S.A[p].score, turn)) : 50);
-  let cap = p === 0 ? "Východisková pozícia" : `Po ťahu ${G.moves[p-1].no}${G.moves[p-1].color === "w" ? "." : "…"} ${sk(G.moves[p-1].san)}`;
-  if (S.A && S.A[p]) cap += ` · hodnotenie ${fmtEval(S.A[p].score, turn)}`;
-  if (p > 0 && S.C && CLS_LABEL[S.C[p-1].cls]) cap += " · zelená šípka = lepší ťah";
+  const en = _isEn();
+  let cap = p === 0 ? (en ? "Starting position" : "Východisková pozícia") : `${en ? "After move" : "Po ťahu"} ${G.moves[p-1].no}${G.moves[p-1].color === "w" ? "." : "…"} ${sk(G.moves[p-1].san)}`;
+  if (S.A && S.A[p]) cap += ` · ${en ? "eval" : "hodnotenie"} ${fmtEval(S.A[p].score, turn)}`;
+  if (p > 0 && S.C && CLS_LABEL[S.C[p-1].cls]) cap += en ? " · green arrow = better move" : " · zelená šípka = lepší ťah";
   $("#poscap").textContent = cap;
   renderOpeningBox($("#an-opbox"), G.fens.slice(0, p + 1));
   renderMoveWhy();
@@ -1808,18 +1873,18 @@ function renderAnalysis(){
   if (G && G.moves.length && G.moves[G.moves.length-1].color === "w") h += "<span></span>";
   $("#moves").innerHTML = h || '<span style="grid-column:1/-1;color:var(--muted)">Zatiaľ žiadne ťahy.</span>';
   // súhrn
-  const meta = readMeta();
+  const meta = readMeta(), en = _isEn();
   if (S.C){
     const sum = summarize(G, S.C, S.A);
     const side = col => `<div class="who ${col === meta.color && profile() ? "me" : ""}">
-      <span class="label">${col === "w" ? "Biely" : "Čierny"} · ${esc((col === "w" ? meta.white : meta.black) || (col === "w" ? "Biely" : "Čierny"))}</span>
-      <span class="acc">${sum[col].acc} %<span class="label" style="margin-left:6px">presnosť</span></span>
-      <span class="counts"><span class="tag"><i class="b-inacc"></i>${sum[col].inacc} nepresn.</span><span class="tag"><i class="b-mistake"></i>${sum[col].mistake} chyby</span><span class="tag"><i class="b-blunder"></i>${sum[col].blunder} hrubé</span></span></div>`;
+      <span class="label">${col === "w" ? (en ? "White" : "Biely") : (en ? "Black" : "Čierny")} · ${esc((col === "w" ? meta.white : meta.black) || (col === "w" ? (en ? "White" : "Biely") : (en ? "Black" : "Čierny")))}</span>
+      <span class="acc">${sum[col].acc} %<span class="label" style="margin-left:6px">${en ? "accuracy" : "presnosť"}</span></span>
+      <span class="counts"><span class="tag"><i class="b-inacc"></i>${sum[col].inacc} ${en ? "inacc." : "nepresn."}</span><span class="tag"><i class="b-mistake"></i>${sum[col].mistake} ${en ? "mistakes" : "chyby"}</span><span class="tag"><i class="b-blunder"></i>${sum[col].blunder} ${en ? "blunders" : "hrubé"}</span></span></div>`;
     $("#summary").innerHTML = `<div class="summary">${side("w")}${side("b")}</div>`;
   } else $("#summary").innerHTML = "";
   // momenty
   if (!S.C){
-    $("#moments").innerHTML = `<div class="empty">${G ? "Stlač Analyzovať a uložiť. Chyby sa tu zobrazia s vysvetlením a lepším ťahom." : "Vlož ťahy partie hore. Pre vyskúšanie môžeš <button id=\"loadsample\">načítať ukážkovú partiu</button>."}</div>`;
+    $("#moments").innerHTML = `<div class="empty">${G ? (en ? "Click Analyze & save. Mistakes will appear here with explanations and better moves." : "Stlač Analyzovať a uložiť. Chyby sa tu zobrazia s vysvetlením a lepším ťahom.") : (en ? "Paste game moves above. To try it out, you can <button id=\"loadsample\">load a sample game</button>." : "Vlož ťahy partie hore. Pre vyskúšanie môžeš <button id=\"loadsample\">načítať ukážkovú partiu</button>.")}</div>`;
   } else {
     let mh = "";
     S.C.forEach((c,i) => {
@@ -1827,11 +1892,11 @@ function renderAnalysis(){
       const m = G.moves[i], mine = profile() && m.color === meta.color;
       mh += `<div class="moment ${c.cls}" data-ply="${i+1}" tabindex="0">
         <h3><span class="mono">${m.no}${m.color === "w" ? "." : "…"} ${sk(m.san)}${CLS_GLYPH[c.cls]}</span>
-        <span class="label c-${c.cls}">${CLS_LABEL[c.cls]} · ${m.color === "w" ? "biely" : "čierny"}${mine ? " (náš hráč)" : ""}</span>
+        <span class="label c-${c.cls}">${CLS_LABEL[c.cls]} · ${m.color === "w" ? (en ? "White" : "biely") : (en ? "Black" : "čierny")}${mine ? (en ? " (our player)" : " (náš hráč)") : ""}</span>
         <span class="label">${MOTIF[S.I[i].motif].t}</span></h3>
         <p>${esc(S.I[i].text)}</p></div>`;
     });
-    $("#moments").innerHTML = mh || '<div class="empty">Žiadne výrazné chyby. Výborne zahraná partia!</div>';
+    $("#moments").innerHTML = mh || `<div class="empty">${en ? "No major mistakes. Well played!" : "Žiadne výrazné chyby. Výborne zahraná partia!"}</div>`;
   }
   renderGraph(); renderPosition();
 }
@@ -1854,10 +1919,12 @@ function go(p){ if (!S.G){ renderPosition(); return; } S.ply = Math.max(0, Math.
 /* ================= puzzle ================= */
 let PZ = null;
 function puzzleTask(fen, a){
-  const who = fen.split(" ")[1] === "w" ? "Biely" : "Čierny";
-  if (a.score.mate != null && a.score.mate > 0) return `${who} na ťahu: nájdi mat v ${a.score.mate}.`;
+  const en = _isEn(), who = fen.split(" ")[1] === "w" ? (en ? "White" : "Biely") : (en ? "Black" : "Čierny");
+  if (a.score.mate != null && a.score.mate > 0) return en ? `${who} to move: find mate in ${a.score.mate}.` : `${who} na ťahu: nájdi mat v ${a.score.mate}.`;
   const m = new Chess(fen).move(uciObj(a.best));
-  return m && m.captured ? `${who} na ťahu: získaj materiál.` : `${who} na ťahu: nájdi ťah, ktorý získa materiál.`;
+  return en
+    ? (m && m.captured ? `${who} to move: win material.` : `${who} to move: find the move that wins material.`)
+    : (m && m.captured ? `${who} na ťahu: získaj materiál.` : `${who} na ťahu: nájdi ťah, ktorý získa materiál.`);
 }
 function lineFor(a){
   if (a.score.mate != null && a.score.mate > 0 && a.score.mate <= 4 && a.pv.length >= a.score.mate*2-1) return a.pv.slice(0, a.score.mate*2-1);
@@ -2704,7 +2771,7 @@ function renderPlay(){
     h.lines.slice().reverse().forEach((l, ri) => { const i = h.lines.length - 1 - ri; const u = l.pv[0]; if (u) arrows.push({from:u.slice(0,2), to:u.slice(2,4), color: i === 0 ? "best" : "chart"}); });
     setEvalBar(winp(whiteCp(h.lines[0].score, c.turn())));
   } else setEvalBar(50);
-  drawBoard($("#board"), c.fen(), {orient:PL.color, hl, arrows});
+  drawBoard($("#board"), c.fen(), {orient:PL.color, hl, arrows, captured:true});
   const over = playOver();
   const st = $("#pl-status");
   const oppN = PL.opp ? oppById(PL.opp).name : "Stockfish";
@@ -2827,18 +2894,18 @@ function runAnaEngine(){
   }, 150);
 }
 function renderAnaLines(){
-  const box = $("#an-lines"), c = new Chess(AN.cur.fen), turn = c.turn();
-  $("#an-depth").textContent = AN.lines && AN.depth ? `hĺbka ${AN.depth}` : "";
-  if (!$("#an-eng").checked){ box.innerHTML = '<li style="list-style:none;color:var(--muted)">Stockfish je vypnutý.</li>'; return; }
-  if (c.in_checkmate()){ box.innerHTML = `<li style="list-style:none">Mat – vyhral ${c.turn() === "w" ? "čierny" : "biely"}.</li>`; return; }
-  if (c.game_over()){ box.innerHTML = '<li style="list-style:none">Remíza.</li>'; return; }
-  if (!AN.lines){ box.innerHTML = '<li style="list-style:none;color:var(--muted)">Stockfish počíta…</li>'; return; }
+  const box = $("#an-lines"), c = new Chess(AN.cur.fen), turn = c.turn(), en = _isEn();
+  $("#an-depth").textContent = AN.lines && AN.depth ? `${en ? "depth" : "hĺbka"} ${AN.depth}` : "";
+  if (!$("#an-eng").checked){ box.innerHTML = `<li style="list-style:none;color:var(--muted)">${en ? "Stockfish is off." : "Stockfish je vypnutý."}</li>`; return; }
+  if (c.in_checkmate()){ box.innerHTML = `<li style="list-style:none">${en ? `Checkmate – ${c.turn() === "w" ? "Black" : "White"} won.` : `Mat – vyhral ${c.turn() === "w" ? "čierny" : "biely"}.`}</li>`; return; }
+  if (c.game_over()){ box.innerHTML = `<li style="list-style:none">${en ? "Draw." : "Remíza."}</li>`; return; }
+  if (!AN.lines){ box.innerHTML = `<li style="list-style:none;color:var(--muted)">${en ? "Stockfish is calculating…" : "Stockfish počíta…"}</li>`; return; }
   if (AN.lines.error){ box.innerHTML = `<li style="list-style:none">${esc(AN.lines.error)}</li>`; return; }
   box.innerHTML = AN.lines.map((l, i) => `<li data-li="${i}"><b>${fmtEval(l.score, turn)}</b><span class="ev">${esc(sanLine(AN.cur.fen, l.pv, 8))}</span></li>`).join("");
 }
 function renderAnaBoard(){
   if (S.tab !== "ana" || !AN) return;
-  const c = new Chess(AN.cur.fen), hl = {}, arrows = [];
+  const c = new Chess(AN.cur.fen), hl = {}, arrows = [], en = _isEn();
   const m = AN.cur.mv; if (m){ hl[m.from] = "last"; hl[m.to] = "last"; }
   if (c.in_check()){ const bd = c.board(); for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++){ const p = bd[r][f]; if (p && p.type === "k" && p.color === c.turn()) hl["abcdefgh"[f] + (8 - r)] = "wrong"; } }
   if (AN.sel){ hl[AN.sel] = "sel"; for (const x of c.moves({square:AN.sel, verbose:true})) hl[x.to] = "tgt"; }
@@ -2846,9 +2913,11 @@ function renderAnaBoard(){
   if (L){ L.slice().reverse().forEach((l, ri) => { const i = L.length - 1 - ri, u = l.pv[0]; if (u) arrows.push({from:u.slice(0,2), to:u.slice(2,4), color: i === 0 ? "best" : "chart"}); });
     setEvalBar(winp(whiteCp(L[0].score, c.turn()))); }
   else setEvalBar(50);
-  drawBoard($("#board"), AN.cur.fen, {orient: AN.orient, hl, arrows});
+  drawBoard($("#board"), AN.cur.fen, {orient: AN.orient, hl, arrows, captured: AN.root && AN.root.fen.split(" ")[0] === START_FEN.split(" ")[0]});
   const no = AN.cur.fen.split(" ")[5];
-  $("#poscap").textContent = m ? `Po ťahu ${m.no}${m.color === "w" ? "." : "…"} ${sk(m.san)} · na ťahu ${c.turn() === "w" ? "biely" : "čierny"}` : `Východisková pozícia · na ťahu ${c.turn() === "w" ? "biely" : "čierny"}`;
+  $("#poscap").textContent = en
+    ? (m ? `After move ${m.no}${m.color === "w" ? "." : "…"} ${sk(m.san)} · ${c.turn() === "w" ? "White" : "Black"} to move` : `Starting position · ${c.turn() === "w" ? "White" : "Black"} to move`)
+    : (m ? `Po ťahu ${m.no}${m.color === "w" ? "." : "…"} ${sk(m.san)} · na ťahu ${c.turn() === "w" ? "biely" : "čierny"}` : `Východisková pozícia · na ťahu ${c.turn() === "w" ? "biely" : "čierny"}`);
 }
 function moveLabel(n, force){
   const m = n.mv;
@@ -2898,18 +2967,19 @@ function renderAna(){
     (S.anaBack.tab === "tr" && DET) ||
     (S.anaBack.tab === "jy" && JT)
   ) ? S.anaBack : null;
+  const en = _isEn();
   $("#an-backbox").hidden = !bk;
-  if (bk && bk.tab === "study"){ $("#an-back").textContent = "← Späť do štúdie"; $("#an-backtxt").textContent = `${STUDIES[ST.sid].name} · ${ST.chi + 1}. ${STUDIES[ST.sid].chapters[ST.chi].title}`; }
+  if (bk && bk.tab === "study"){ $("#an-back").textContent = en ? "← Back to study" : "← Späť do štúdie"; $("#an-backtxt").textContent = `${STUDIES[ST.sid].name} · ${ST.chi + 1}. ${STUDIES[ST.sid].chapters[ST.chi].title}`; }
   if (bk && bk.tab === "pz"){
-    if (bk.mode === "datel"){ $("#an-back").textContent = "← Späť k Ďatľovi"; $("#an-backtxt").textContent = DT.set ? DT.set.t + (DT.it && DT.it.s ? " · " + DT.it.s : "") : ""; }
-    else if (bk.mode === "thr"){ $("#an-back").textContent = "← Späť k Hrozbám"; $("#an-backtxt").textContent = (HZ.cur && HZ.cur.it && HZ.cur.it.src) || "Hrozby"; }
-    else if (bk.mode === "rush"){ $("#an-back").textContent = "← Späť k rýchlovkám"; $("#an-backtxt").textContent = "Úlohy, ktoré nevyšli"; }
-    else if (bk.mode === "gm"){ $("#an-back").textContent = "← Späť k majstrom"; $("#an-backtxt").textContent = GM.g ? GM.g.title : "Hádaj ťah majstra"; }
-    else if (bk.mode === "ad"){ $("#an-back").textContent = "← Späť k adaptívnym puzzle"; $("#an-backtxt").textContent = AD && AD.x ? `Úloha ≈ ${AD.x.r} Elo` : "Podľa mojej sily"; }
-    else { $("#an-back").textContent = "← Späť k puzzle"; $("#an-backtxt").textContent = PZ.p.src || ""; }
+    if (bk.mode === "datel"){ $("#an-back").textContent = en ? "← Back to Pattern Drill" : "← Späť k Ďatľovi"; $("#an-backtxt").textContent = DT.set ? DT.set.t + (DT.it && DT.it.s ? " · " + DT.it.s : "") : ""; }
+    else if (bk.mode === "thr"){ $("#an-back").textContent = en ? "← Back to Threats" : "← Späť k Hrozbám"; $("#an-backtxt").textContent = (HZ.cur && HZ.cur.it && HZ.cur.it.src) || (en ? "Threats" : "Hrozby"); }
+    else if (bk.mode === "rush"){ $("#an-back").textContent = en ? "← Back to 1-Move Rush" : "← Späť k rýchlovkám"; $("#an-backtxt").textContent = en ? "Missed puzzles" : "Úlohy, ktoré nevyšli"; }
+    else if (bk.mode === "gm"){ $("#an-back").textContent = en ? "← Back to Master Games" : "← Späť k majstrom"; $("#an-backtxt").textContent = GM.g ? GM.g.title : (en ? "Guess the Master Move" : "Hádaj ťah majstra"); }
+    else if (bk.mode === "ad"){ $("#an-back").textContent = en ? "← Back to Adaptive Puzzles" : "← Späť k adaptívnym puzzle"; $("#an-backtxt").textContent = AD && AD.x ? `${en ? "Puzzle" : "Úloha"} ≈ ${AD.x.r} Elo` : (en ? "Adaptive puzzles" : "Podľa mojej sily"); }
+    else { $("#an-back").textContent = en ? "← Back to puzzles" : "← Späť k puzzle"; $("#an-backtxt").textContent = PZ.p.src || ""; }
   }
-  if (bk && bk.tab === "tr"){ $("#an-back").textContent = "← Späť k Detektívovi"; $("#an-backtxt").textContent = (DET.g && DET.g.event) || "Detektív"; }
-  if (bk && bk.tab === "jy"){ $("#an-back").textContent = "← Späť do Putovania"; $("#an-backtxt").textContent = JT.title || "Putovanie"; }
+  if (bk && bk.tab === "tr"){ $("#an-back").textContent = en ? "← Back to Detective" : "← Späť k Detektívovi"; $("#an-backtxt").textContent = (DET.g && DET.g.event) || (en ? "Detective" : "Detektív"); }
+  if (bk && bk.tab === "jy"){ $("#an-back").textContent = en ? "← Back to Journey" : "← Späť do Putovania"; $("#an-backtxt").textContent = JT.title || (en ? "Journey" : "Putovanie"); }
   const t = $("#an-tree");
   t.innerHTML = AN.root.children.length ? treeHtml(AN.root, true) : '<span style="color:var(--muted);font-family:var(--f-body)">Ťahaj figúrkami za oboch hráčov. Nový ťah z inej pozície vytvorí variant.</span>';
   const on = t.querySelector(".am.on"); if (on){ const top = on.offsetTop - t.offsetTop; if (top < t.scrollTop || top > t.scrollTop + t.clientHeight - 24) t.scrollTop = top - 60; }
@@ -2954,7 +3024,7 @@ const addDays = (ds, n) => { const [y,m,d] = ds.split("-").map(Number); return t
 const dowOf = ds => { const [y,m,d] = ds.split("-").map(Number); return (new Date(y, m-1, d).getDay() + 6) % 7; };
 const weekKey = ds => addDays(ds, -dowOf(ds));
 const DOW = ["Po","Ut","St","Št","Pi","So","Ne"];
-const DOW_LONG = ["pondelok","utorok","streda","štvrtok","piatok","sobota","nedeľa"];
+const DOW_LONG = _isEn() ? ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] : ["pondelok","utorok","streda","štvrtok","piatok","sobota","nedeľa"];
 const PZ_TARGET = 2, FIRST_TARGET = 2;
 const dayId = (date = todayStr()) => S.pid + "_" + date;
 const dayDoc = () => S.pid ? S.days.find(d => d.id === dayId()) || null : null;
@@ -4018,6 +4088,7 @@ STUDIES.endgame = {"name":"Základné koncovky","side":"w","intro":"Základné k
 
 
 
+if (_isEn() && typeof window.I18N_APPLY_CONTENT === "function") try { window.I18N_APPLY_CONTENT(STUDIES); } catch(e){}
 const STUDY_GLYPH = {friedliver:"♞", scandinavian:"♛", italian:"♝", tactics:"♟", endgame:"♚"};
 for (const [k, st] of Object.entries(STUDIES)) if (k !== "evans" && k !== "tactics" && k !== "endgame")
   BADGES.push({g:"Otvorenia a Stockfish", id:"st_" + k, glyph:STUDY_GLYPH[k] || "♝", t:`Znalec: ${st.name}`, d:`Prejdi všetky kapitoly štúdie ${st.name}.`, v:s => (s.study || {})[k] || 0, of:st.chapters.length});
@@ -4026,11 +4097,11 @@ const studyDoc = sid => S.studyprog.find(d => d.id === S.pid + "_" + sid) || nul
 function studyChapters(sid){ const d = studyDoc(sid), ch = (d && d.ch) || {}; return STUDIES[sid].chapters.map(c => ({id:c.id, stars:(ch[c.id] || {}).stars || 0})); }
 const starStr = n => [1,2,3].map(i => `<span class="${i <= n ? "" : "off"}">★</span>`).join("");
 function renderStudyList(){
-  const sid = ST ? ST.sid : "evans", S0 = STUDIES[sid], prog = studyChapters(sid);
+  const sid = ST ? ST.sid : "evans", S0 = STUDIES[sid], prog = studyChapters(sid), en = _isEn();
   $("#st-pick").innerHTML = Object.entries(STUDIES).map(([k, st]) => { const pr = studyChapters(k);
     return `<button class="${k === sid ? "on" : ""}" data-study="${k}"><span class="pc ${st.side}">${STUDY_GLYPH[k] || "♝"}</span>${esc(st.name)} <small>${pr.filter(c => c.stars).length}/${pr.length}</small></button>`; }).join("");
   $("#st-name").textContent = S0.name;
-  $("#st-count").textContent = `${prog.filter(c => c.stars).length} z ${prog.length} kapitol`;
+  $("#st-count").textContent = en ? `${prog.filter(c => c.stars).length} of ${prog.length} chapters` : `${prog.filter(c => c.stars).length} z ${prog.length} kapitol`;
   $("#st-intro").textContent = S0.intro;
   $("#st-intro").hidden = !!ST && ST.chi != null;
   $("#side-study").classList.toggle("inch", !!ST && ST.chi != null);
@@ -4041,13 +4112,13 @@ function openStudy(sid){
   ST = ST && ST.sid === sid ? ST : {sid, chi:null, orient: STUDIES[sid].side};
   renderStudyList();
   if (ST.chi == null){ $("#st-chapter").hidden = true; $("#st-listbox").open = true; drawBoard($("#board"), START_FEN, {orient:ST.orient}); setEvalBar(50);
-    $("#poscap").textContent = "Vyber si kapitolu. Odporúčame ísť po poradí."; }
+    $("#poscap").textContent = _isEn() ? "Choose a chapter. We recommend going in order." : "Vyber si kapitolu. Odporúčame ísť po poradí."; }
   else renderStudy();
 }
 function startChapter(i, mode){
-  const ch = STUDIES[ST.sid].chapters[i], c = chStart(ch);
+  const ch = STUDIES[ST.sid].chapters[i], c = chStart(ch), en = _isEn();
   ST = {...ST, chi:i, mode, orient: ch.side || STUDIES[ST.sid].side, c, step:0, mistakes:0, wrongHere:0, hintUsed:false, sel:null, lastMv:null, done:false, hint:null, wrong:null, prompt:null, tok:(ST.tok || 0) + 1};
-  ST.log = [{cls:"sn", t:"Začiatok: " + chStartText(ch)}, {cls:"sn", t:ch.intro}];
+  ST.log = [{cls:"sn", t:(en ? "Start: " : "Začiatok: ") + chStartText(ch)}, {cls:"sn", t:ch.intro}];
   const h = c.history({verbose:true}); ST.lastMv = h[h.length - 1] || null;
   $("#st-chapter").hidden = false; $("#st-listbox").open = false;
   if (mode === "view"){ ST.vi = 0; }
@@ -4056,9 +4127,9 @@ function startChapter(i, mode){
 }
 const preMoves = ch => ch.pre ? ch.pre.split(" ") : [];
 const chStart = ch => { const c = ch.fen ? new Chess(ch.fen) : new Chess(); preMoves(ch).forEach(m => c.move(m)); return c; };
-const chStartText = ch => ch.fen ? "pozícia z knihy" : preText(ch.pre);
+const chStartText = ch => ch.fen ? (_isEn() ? "book position" : "pozícia z knihy") : preText(ch.pre);
 function preText(pre){
-  if (!pre) return "základné postavenie";
+  if (!pre) return _isEn() ? "starting position" : "základné postavenie";
   const c = new Chess(); let out = [];
   pre.split(" ").forEach(san => { const no = c.fen().split(" ")[5], t = c.turn(), m = c.move(san); out.push((t === "w" ? no + ". " : "") + sk(m.san)); });
   return out.join(" ");
@@ -4079,7 +4150,7 @@ function studyAdvance(){
     }, 700);
     return;
   }
-  ST.wrongHere = 0; ST.hint = null; ST.prompt = {t: mv.q || "Tvoj ťah.", cls:""};
+  ST.wrongHere = 0; ST.hint = null; ST.prompt = {t: mv.q || (_isEn() ? "Your move." : "Tvoj ťah."), cls:""};
   renderStudy();
 }
 function studySquare(sq){
@@ -4091,37 +4162,41 @@ function studySquare(sq){
   renderStudyBoard();
 }
 function studyTry(from, to){
-  const ch = STUDIES[ST.sid].chapters[ST.chi], mv = ch.moves[ST.step], c = ST.c, fen = c.fen();
+  const ch = STUDIES[ST.sid].chapters[ST.chi], mv = ch.moves[ST.step], c = ST.c, fen = c.fen(), en = _isEn();
   const m = c.move({from, to, promotion:"q"}); ST.sel = null;
   if (!m) return;
   const want = new Chess(fen).move(mv.m);
   if (m.san === want.san){
     SFX.move(m); ST.lastMv = m; ST.hint = null; ST.log.push({cls:"w", m:moveText(fen, mv.m), t:mv.c, a:mv.a}); ST.step++;
-    ST.prompt = {t:"Správne!", cls:"ok"};
+    ST.prompt = {t: en ? "Correct!" : "Správne!", cls:"ok"};
     studyAdvance(); return;
   }
   c.undo();
   if ((mv.alt || []).some(a => new Chess(fen).move(a).san === m.san)){
-    ST.prompt = {t:`${sk(m.san)} je tiež dobrý ťah, ale v tejto kapitole sa učíme iný. Skús ho nájsť.`, cls:""}; renderStudy(); return;
+    ST.prompt = {t: en ? `${sk(m.san)} is also a good move, but in this chapter we're learning a different one. Try to find it.`
+      : `${sk(m.san)} je tiež dobrý ťah, ale v tejto kapitole sa učíme iný. Skús ho nájsť.`, cls:""}; renderStudy(); return;
   }
   SFX.play("bad"); ST.mistakes++; ST.wrongHere++; ST.wrong = to;
   if (ST.wrongHere >= 2) ST.hint = want.from;
-  ST.prompt = {t:`${sk(m.san)} nie je ťah z tejto kapitoly. ${ST.wrongHere >= 2 ? "Pohni figúrkou na označenom poli." : "Skús znova."}`, cls:"bad"};
+  ST.prompt = {t: en
+    ? `${sk(m.san)} is not the chapter move. ${ST.wrongHere >= 2 ? "Move the highlighted piece." : "Try again."}`
+    : `${sk(m.san)} nie je ťah z tejto kapitoly. ${ST.wrongHere >= 2 ? "Pohni figúrkou na označenom poli." : "Skús znova."}`, cls:"bad"};
   renderStudy();
 }
 function finishChapter(){
-  const ch = STUDIES[ST.sid].chapters[ST.chi];
+  const ch = STUDIES[ST.sid].chapters[ST.chi], en = _isEn();
   ST.done = true;
   const stars = ST.mode !== "practice" ? 0 : ST.mistakes === 0 && !ST.hintUsed ? 3 : ST.mistakes <= 2 ? 2 : 1;
   ST.log.push({cls:"sn", t:ch.end});
-  ST.prompt = stars ? {t:`Kapitola hotová! ${"★".repeat(stars)}${"☆".repeat(3 - stars)}`, cls:"ok"} : {t:"Koniec kapitoly.", cls:""};
+  ST.prompt = stars ? {t:`${en ? "Chapter complete!" : "Kapitola hotová!"} ${"★".repeat(stars)}${"☆".repeat(3 - stars)}`, cls:"ok"} : {t: en ? "End of chapter." : "Koniec kapitoly.", cls:""};
   renderStudy();
   if (stars) SFX.stars(stars);
   if (!stars || !S.pid) return;
   const d = studyDoc(ST.sid), chs = {...((d && d.ch) || {})}, old = (chs[ch.id] || {}).stars || 0;
   chs[ch.id] = {stars: Math.max(old, stars), n: ((chs[ch.id] || {}).n || 0) + 1, last: Date.now(), ls: stars};
   if (stars > old){
-    toast(`Kapitola „${ch.title}“: ${"★".repeat(stars)} · +${(stars - old) * 10} bodov`);
+    toast(en ? `Chapter "${ch.title}": ${"★".repeat(stars)} · +${(stars - old) * 10} pts`
+      : `Kapitola „${ch.title}“: ${"★".repeat(stars)} · +${(stars - old) * 10} bodov`);
     if (stars === 3) setTimeout(() => confetti(null), 1200);
   }
   const id = S.pid + "_" + ST.sid, body = {profileId:S.pid, study:ST.sid, ch:chs};
@@ -4147,12 +4222,12 @@ function renderStudyBoard(){
   if (ST.hint) hl[ST.hint] = "hint";
   if (ST.wrong) hl[ST.wrong] = "wrong";
   for (const a of arr || []) arrows.push({from:a[0], to:a[1], color:a[2] || "chart"});
-  drawBoard($("#board"), c.fen(), {orient:ST.orient, hl, arrows});
+  drawBoard($("#board"), c.fen(), {orient:ST.orient, hl, arrows, captured: !!(STUDIES[ST.sid] && STUDIES[ST.sid].open)});
   setEvalBar(50);
 }
 function renderStudy(){
   if (S.tab !== "study" || !ST || ST.chi == null) return;
-  const ch = STUDIES[ST.sid].chapters[ST.chi], prog = studyChapters(ST.sid)[ST.chi];
+  const ch = STUDIES[ST.sid].chapters[ST.chi], prog = studyChapters(ST.sid)[ST.chi], en = _isEn();
   $("#st-title").textContent = `${ST.chi + 1}. ${ch.title}`;
   $("#st-stars").innerHTML = starStr(prog.stars);
   const view = ST.mode === "view";
@@ -4160,21 +4235,27 @@ function renderStudy(){
   $("#st-pbtns").hidden = view || ST.done; $("#st-vnav").hidden = !view; $("#st-play").hidden = !STUDIES[ST.sid].open;
   let entries;
   if (view){
-    entries = [{cls:"sn", t:"Začiatok: " + chStartText(ch)}, {cls:"sn", t:ch.intro}];
+    entries = [{cls:"sn", t:(en ? "Start: " : "Začiatok: ") + chStartText(ch)}, {cls:"sn", t:ch.intro}];
     const c = chStart(ch);
     for (let k = 0; k < ST.vi; k++){ const fen = c.fen(), w = c.turn() === ST.orient; c.move(ch.moves[k].m);
       entries.push({cls:(w ? "w" : "b") + (k === ST.vi - 1 ? " cur" : ""), m:moveText(fen, ch.moves[k].m), t:ch.moves[k].c}); }
     if (ST.vi === ch.moves.length) entries.push({cls:"sn", t:ch.end});
-    $("#st-prompt").textContent = ST.vi < ch.moves.length ? "Klikni ▶ pre ďalší ťah." : "Koniec kapitoly. Skús si ju teraz precvičiť.";
+    $("#st-prompt").textContent = ST.vi < ch.moves.length
+      ? (en ? "Click ▶ for the next move." : "Klikni ▶ pre ďalší ťah.")
+      : (en ? "End of chapter. Now try practicing it." : "Koniec kapitoly. Skús si ju teraz precvičiť.");
     $("#st-prompt").className = "stprompt";
     $("#st-done").hidden = ST.vi < ch.moves.length;
-    $("#poscap").textContent = `Ťah ${ST.vi} z ${ch.moves.length}`;
+    $("#poscap").textContent = en ? `Move ${ST.vi} of ${ch.moves.length}` : `Ťah ${ST.vi} z ${ch.moves.length}`;
   } else {
     entries = ST.log;
-    const p = ST.c.turn() !== ST.orient && !ST.done ? {t:(ST.orient === "w" ? "Čierny" : "Biely") + " premýšľa…", cls:""} : ST.prompt || {t:"", cls:""};
+    const p = ST.c.turn() !== ST.orient && !ST.done
+      ? {t:(en ? (ST.orient === "w" ? "Black is thinking…" : "White is thinking…") : (ST.orient === "w" ? "Čierny" : "Biely") + " premýšľa…"), cls:""}
+      : ST.prompt || {t:"", cls:""};
     $("#st-prompt").textContent = p.t; $("#st-prompt").className = "stprompt " + p.cls;
     $("#st-done").hidden = !ST.done;
-    $("#poscap").textContent = ST.done ? "Kapitola hotová." : `Hráš za ${ST.orient === "w" ? "bieleho" : "čierneho"} · chyby: ${ST.mistakes}`;
+    $("#poscap").textContent = ST.done
+      ? (en ? "Chapter complete." : "Kapitola hotová.")
+      : (en ? `Playing ${ST.orient === "w" ? "White" : "Black"} · mistakes: ${ST.mistakes}` : `Hráš za ${ST.orient === "w" ? "bieleho" : "čierneho"} · chyby: ${ST.mistakes}`);
   }
   $("#st-next").hidden = ST.chi >= STUDIES[ST.sid].chapters.length - 1;
   const log = $("#st-log");
@@ -4194,7 +4275,7 @@ function renderStudy(){
 
 const RUSH_BANK = window.LICHESS_RUSH || {m:[],w:[]};
 const RUSH_N = 20, RUSH_TIME = 10000;
-const RUSH_TASK = {m:"daj mat jedným ťahom", w:"získaj figúrku", b:"nájdi víťazný ťah"};
+const RUSH_TASK = _isEn() ? {m:"mate in 1", w:"win a piece", b:"find the winning move"} : {m:"daj mat jedným ťahom", w:"získaj figúrku", b:"nájdi víťazný ťah"};
 BADGES.push(
   {g:"Rýchlovky", id:"r50", glyph:"♞", t:"Bystré oko", d:"Získaj spolu 50 bodov v rýchlovkách.", v:s => s.rushTotal, of:50, noXp:true},
   {g:"Rýchlovky", id:"r200", glyph:"♝", t:"Rýchle oko", d:"Získaj spolu 200 bodov v rýchlovkách.", v:s => s.rushTotal, of:200, noXp:true},
@@ -4323,15 +4404,15 @@ function rushTick(){
 }
 function rushRender(){
   if (!R || S.tab !== "pz" || S.pzMode !== "rush") return;
-  const p = R.list[R.i], c = R.c, turn = p.f.split(" ")[1], hl = {};
+  const p = R.list[R.i], c = R.c, turn = p.f.split(" ")[1], hl = {}, en = _isEn();
   if (R.sel){ hl[R.sel] = "sel"; for (const m of c.moves({square:R.sel, verbose:true})) hl[m.to] = "tgt"; }
   if (R.flash) for (const sq of R.flash.sqs) hl[sq] = R.flash.cls;
   drawBoard($("#board"), c.fen(), {orient:turn, hl, arrows: R.arrow ? [R.arrow] : []});
   setEvalBar(50);
-  $("#rush-pos").textContent = `Úloha ${R.i + 1} z ${R.list.length}`;
+  $("#rush-pos").textContent = en ? `Puzzle ${R.i + 1} of ${R.list.length}` : `Úloha ${R.i + 1} z ${R.list.length}`;
   $("#rush-score").textContent = R.score;
-  $("#rush-task").textContent = `${turn === "w" ? "Biely" : "Čierny"} na ťahu: ${RUSH_TASK[p.t]}`;
-  $("#poscap").textContent = `Správne ${R.ok} · zle ${R.bad}`;
+  $("#rush-task").textContent = en ? `${turn === "w" ? "White" : "Black"} to move: ${RUSH_TASK[p.t]}` : `${turn === "w" ? "Biely" : "Čierny"} na ťahu: ${RUSH_TASK[p.t]}`;
+  $("#poscap").textContent = en ? `Correct ${R.ok} · wrong ${R.bad}` : `Správne ${R.ok} · zle ${R.bad}`;
 }
 function rushSquare(sq){
   if (!R || !R.running || R.locked) return;
@@ -4355,12 +4436,12 @@ function rushMove(from, to, promo){
 }
 function rushResult(good, m, timeout, fen){
   R.locked = true; clearInterval(R.timer);
-  const p = R.list[R.i];
+  const p = R.list[R.i], en = _isEn();
   R.times.push({t:p.t, ms: timeout ? RUSH_TIME : Math.round(Math.min(RUSH_TIME, performance.now() - R.t0) / 10) * 10, ok: good ? 1 : 0});
   if (good){
     R.score += 3; R.ok++; SFX.play("ok");
     R.flash = {sqs:[m.from, m.to], cls:"flashok"};
-    $("#rush-status").textContent = `${R.c.in_checkmate() ? "Mat!" : "Správne!"} +3`; $("#rush-status").className = "pz-status ok";
+    $("#rush-status").textContent = `${R.c.in_checkmate() ? (en ? "Checkmate!" : "Mat!") : (en ? "Correct!" : "Správne!")} +3`; $("#rush-status").className = "pz-status ok";
     rushRender(); setTimeout(rushNext, 600);
   } else {
     R.score -= 1; R.bad++; SFX.play("bad");
@@ -4369,30 +4450,32 @@ function rushResult(good, m, timeout, fen){
     const sol = new Chess(p.f).move({from:p.ok[0].slice(0,2), to:p.ok[0].slice(2,4), promotion:p.ok[0][4] || undefined});
     R.arrow = {from:sol.from, to:sol.to, color:"best"};
     R.flash = m ? {sqs:[m.to], cls:"wrong"} : null;
-    $("#rush-status").textContent = `${timeout ? "Čas vypršal." : sk(m.san) + " nie je správne."} Správne bolo ${sk(sol.san)}. −1`;
+    $("#rush-status").textContent = en
+      ? `${timeout ? "Time's up." : sk(m.san) + " is not right."} Best was ${sk(sol.san)}. −1`
+      : `${timeout ? "Čas vypršal." : sk(m.san) + " nie je správne."} Správne bolo ${sk(sol.san)}. −1`;
     $("#rush-status").className = "pz-status bad";
     rushRender(); setTimeout(rushNext, 1800);
   }
 }
 /* prehľad nevyriešených úloh po kole – bez časomiery, s tlačidlom na správny ťah */
 function renderRushReview(){
-  const box = $("#rush-rev"), list = (R && R.missed) || [];
+  const box = $("#rush-rev"), list = (R && R.missed) || [], en = _isEn();
   box.hidden = !list.length; if (!list.length) return;
-  $("#rush-rev-title").textContent = `Úlohy, ktoré nevyšli (${list.length})`;
-  $("#rush-rev-chips").innerHTML = list.map((x, k) => `<button class="chip ${R.rv === k ? "on" : ""} ${x.solved ? "done" : ""}" data-rv="${k}">${k + 1}. ${x.p.t === "m" ? "mat" : x.p.t === "b" ? "taktika" : "figúrka"}${x.solved ? " ✓" : ""}</button>`).join("");
+  $("#rush-rev-title").textContent = en ? `Missed puzzles (${list.length})` : `Úlohy, ktoré nevyšli (${list.length})`;
+  $("#rush-rev-chips").innerHTML = list.map((x, k) => `<button class="chip ${R.rv === k ? "on" : ""} ${x.solved ? "done" : ""}" data-rv="${k}">${k + 1}. ${x.p.t === "m" ? (en ? "mate" : "mat") : x.p.t === "b" ? (en ? "tactic" : "taktika") : (en ? "piece" : "figúrka")}${x.solved ? " ✓" : ""}</button>`).join("");
   $("#rush-rev-cur").hidden = R.rv == null;
   if (R.rv == null){ drawBoard($("#board"), START_FEN); return; }
   const x = list[R.rv], turn = x.c.turn();
-  $("#rush-rev-task").textContent = `${turn === "w" ? "Biely" : "Čierny"} na ťahu: ${RUSH_TASK[x.p.t]}`;
+  $("#rush-rev-task").textContent = en ? `${turn === "w" ? "White" : "Black"} to move: ${RUSH_TASK[x.p.t]}` : `${turn === "w" ? "Biely" : "Čierny"} na ťahu: ${RUSH_TASK[x.p.t]}`;
   const st = $("#rush-rev-status");
   if (x.msg){ st.textContent = x.msg.t; st.className = "pz-status " + x.msg.cls; }
-  else { st.textContent = x.timeout ? "V kole ti došiel čas." : `V kole si zahral ${sk(x.played)}.`; st.className = "pz-status"; }
+  else { st.textContent = x.timeout ? (en ? "You ran out of time in the round." : "V kole ti došiel čas.") : (en ? `In the round you played ${sk(x.played)}.` : `V kole si zahral ${sk(x.played)}.`); st.className = "pz-status"; }
   $("#rush-rev-next").hidden = list.length < 2;
   const hl = {};
   if (x.sel){ hl[x.sel] = "sel"; for (const m of x.c.moves({square:x.sel, verbose:true})) hl[m.to] = "tgt"; }
   if (x.flash) for (const sq of x.flash.sqs) hl[sq] = x.flash.cls;
   drawBoard($("#board"), x.c.fen(), {orient: new Chess(x.p.f).turn(), hl, arrows: x.arrow ? [x.arrow] : []});
-  $("#poscap").textContent = `Úloha na zopakovanie ${R.rv + 1} z ${list.length}`;
+  $("#poscap").textContent = en ? `Review puzzle ${R.rv + 1} of ${list.length}` : `Úloha na zopakovanie ${R.rv + 1} z ${list.length}`;
 }
 function rushReviewOpen(k){
   const x = R.missed[k]; R.rv = k;
@@ -4402,7 +4485,7 @@ function rushReviewOpen(k){
 function rushSolution(p){
   const o = p.ok[0], fen = p.f, sol = new Chess(fen).move({from:o.slice(0,2), to:o.slice(2,4), promotion:o[4] || undefined});
   let why = "";
-  if (p.t === "m") why = "Mat – kráľ je v šachu a nemá kam ujsť.";
+  if (p.t === "m") why = _isEn() ? "Checkmate – the king is in check and has no escape." : "Mat – kráľ je v šachu a nemá kam ujsť.";
   else { try { const f = moveFeatures(fen, sol.from + sol.to + (sol.promotion || "")); why = f.pts[0] || ""; } catch(e){} }
   return {sol, why};
 }
@@ -4411,19 +4494,19 @@ function rushReviewShow(){
   const {sol, why} = rushSolution(x.p);
   x.c = new Chess(x.p.f); x.sel = null;
   x.arrow = {from:sol.from, to:sol.to, color:"best"}; x.flash = {sqs:[sol.from, sol.to], cls:"hint"};
-  x.msg = {t:`Správny ťah: ${sk(sol.san)}. ${why}`, cls:"ok"};
+  x.msg = {t:`${_isEn() ? "Best move" : "Správny ťah"}: ${sk(sol.san)}. ${why}`, cls:"ok"};
   renderRushReview();
 }
 function rushReviewSquare(sq){
   const x = R.missed[R.rv]; if (!x) return;
-  const c = x.c, pc = c.get(sq), mine = pc && pc.color === c.turn();
+  const c = x.c, pc = c.get(sq), mine = pc && pc.color === c.turn(), en = _isEn();
   if (x.sel && x.sel !== sq && c.moves({square:x.sel, verbose:true}).some(m => m.to === sq)){
     const fen = c.fen(), m = c.move({from:x.sel, to:sq, promotion:"q"}); x.sel = null;
     const u = m.from + m.to + (m.promotion || "");
     const good = x.p.ok.some(o => o === u || (o.slice(0,4) === u.slice(0,4) && !o[4])) || (x.p.t === "m" && c.in_checkmate());
     if (good){ x.solved = true; x.flash = {sqs:[m.from, m.to], cls:"flashok"}; x.arrow = null;
-      const {why} = rushSolution(x.p); x.msg = {t:`Správne! ${sk(m.san)}. ${why}`, cls:"ok"}; }
-    else { c.load(fen); x.flash = {sqs:[m.to], cls:"wrong"}; x.msg = {t:`${sk(m.san)} nie je správne. Skús znova, alebo stlač Ukáž správny ťah.`, cls:"bad"}; }
+      const {why} = rushSolution(x.p); x.msg = {t:`${en ? "Correct!" : "Správne!"} ${sk(m.san)}. ${why}`, cls:"ok"}; }
+    else { c.load(fen); x.flash = {sqs:[m.to], cls:"wrong"}; x.msg = {t: en ? `${sk(m.san)} is not right. Try again, or click Show correct move.` : `${sk(m.san)} nie je správne. Skús znova, alebo stlač Ukáž správny ťah.`, cls:"bad"}; }
     renderRushReview(); return;
   }
   x.sel = mine && x.sel !== sq ? sq : null; x.flash = null;
@@ -4432,19 +4515,19 @@ function rushReviewSquare(sq){
 function rushAbort(){ if (!R) return; clearInterval(R.timer); R.tok++; R.running = false; }
 async function rushEnd(stopped){
   clearInterval(R.timer); R.running = false; R.tok++;
-  const n = stopped ? R.i : R.list.length;
+  const n = stopped ? R.i : R.list.length, en = _isEn();
   const best = Math.max(0, ...S.rush.map(r => r.score || 0));
-  $("#rush-end-title").textContent = stopped ? "Kolo ukončené" : "Kolo skončilo";
-  $("#rush-end-score").textContent = `${R.score} bodov`;
-  $("#rush-end-txt").textContent = `Správne ${R.ok} z ${n}.` + (n >= RUSH_N && R.score > best ? " Nový rekord kola!" : "");
+  $("#rush-end-title").textContent = stopped ? (en ? "Round ended" : "Kolo ukončené") : (en ? "Round finished" : "Kolo skončilo");
+  $("#rush-end-score").textContent = en ? `${R.score} pts` : `${R.score} bodov`;
+  $("#rush-end-txt").textContent = (en ? `Correct ${R.ok} of ${n}.` : `Správne ${R.ok} z ${n}.`) + (n >= RUSH_N && R.score > best ? (en ? " New round record!" : " Nový rekord kola!") : "");
   const T = timeStats([{times:R.times}]), prevT = timeStats(S.rush.slice().sort((a,b) => (b.created || 0) - (a.created || 0)).slice(0, 5));
   const fastestEver = timeStats(S.rush).min;
-  $("#rush-end-times").innerHTML = T.n ? `<div><span class="label">Priemerný čas</span><b>${fmtS(T.avg)}</b>${prevT.n ? `<small class="${T.avg < prevT.avg ? "up" : "down"}">${T.avg < prevT.avg ? "rýchlejšie" : "pomalšie"} ako posledné kolá (${fmtS(prevT.avg)})</small>` : ""}</div>
-    <div><span class="label">Najrýchlejšie</span><b>${fmtS(T.min)}</b>${fastestEver != null && T.min < fastestEver ? '<small class="up">nový rekord!</small>' : ""}</div>
-    <div><span class="label">Najpomalšie</span><b>${fmtS(T.max)}</b></div>
-    <div><span class="label">Mat 1 ťahom</span><b>${T.m != null ? fmtS(T.m) : "–"}</b></div>
-    <div><span class="label">Získaj figúrku</span><b>${T.w != null ? fmtS(T.w) : "–"}</b></div>
-    <div><span class="label">Do 3 sekúnd</span><b>${T.fast}×</b></div>` : "";
+  $("#rush-end-times").innerHTML = T.n ? `<div><span class="label">${en ? "Average time" : "Priemerný čas"}</span><b>${fmtS(T.avg)}</b>${prevT.n ? `<small class="${T.avg < prevT.avg ? "up" : "down"}">${T.avg < prevT.avg ? (en ? "faster" : "rýchlejšie") : (en ? "slower" : "pomalšie")} ${en ? "than recent rounds" : "ako posledné kolá"} (${fmtS(prevT.avg)})</small>` : ""}</div>
+    <div><span class="label">${en ? "Fastest" : "Najrýchlejšie"}</span><b>${fmtS(T.min)}</b>${fastestEver != null && T.min < fastestEver ? `<small class="up">${en ? "new record!" : "nový rekord!"}</small>` : ""}</div>
+    <div><span class="label">${en ? "Slowest" : "Najpomalšie"}</span><b>${fmtS(T.max)}</b></div>
+    <div><span class="label">${en ? "Mate in 1" : "Mat 1 ťahom"}</span><b>${T.m != null ? fmtS(T.m) : "–"}</b></div>
+    <div><span class="label">${en ? "Win a piece" : "Získaj figúrku"}</span><b>${T.w != null ? fmtS(T.w) : "–"}</b></div>
+    <div><span class="label">${en ? "Under 3 sec" : "Do 3 sekúnd"}</span><b>${T.fast}×</b></div>` : "";
   showRush("end");
   R.rv = null; if (R.missed.length) rushReviewOpen(0); else renderRushReview();
   if (n >= RUSH_N && R.score > best && S.rush.length) confetti();
@@ -4495,7 +4578,7 @@ function gmRender(){
   if (GM.hint) hl[GM.hint] = "hint";
   if (GM.sel){ hl[GM.sel] = "sel"; for (const m of GM.c.moves({square:GM.sel, verbose:true})) hl[m.to] = "tgt"; }
   if (GM.flash) for (const sq of GM.flash.sqs) hl[sq] = GM.flash.cls;
-  drawBoard($("#board"), GM.c.fen(), {orient:g.side, hl, arrows:GM.arrow ? [GM.arrow] : []});
+  drawBoard($("#board"), GM.c.fen(), {orient:g.side, hl, arrows:GM.arrow ? [GM.arrow] : [], captured:true});
   $("#gm-pos").textContent = `Moment ${GM.k + 1} z ${g.steps.length}`;
   $("#gm-score").textContent = `${GM.pts} b.`;
   $("#gm-title").textContent = `${g.title} · ${g.who}`;
@@ -4613,17 +4696,20 @@ function adRender(){
     de.className = AD.delta >= 0 ? "up" : "down";
   } else { de.textContent = ""; de.className = ""; }
   $("#ad-pr").textContent = `≈ ${x.r} Elo`;
-  const setObj = dtSet(x.set);
-  const srcName = setObj ? setObj.t : (x.set === "rush:m" ? "Mat 1 ťahom" : "Získaj figúrku");
-  const thName = (typeof RT_THEMES !== "undefined" && RT_THEMES[x.theme]) ? RT_THEMES[x.theme] : "Mix";
+  const setObj = dtSet(x.set), en = _isEn();
+  const srcName = setObj ? setObj.t : (x.set === "rush:m" ? (en ? "Mate in 1" : "Mat 1 ťahom") : (en ? "Win a piece" : "Získaj figúrku"));
+  const rawTh = (typeof RT_THEMES !== "undefined" && RT_THEMES[x.theme]) ? RT_THEMES[x.theme] : "Mix";
+  const thName = en && window.I18N ? I18N.t(rawTh) : rawTh;
   $("#ad-src").textContent = `${thName} · ${srcName}`;
-  const who = AD.me === "w" ? "Biely" : "Čierny";
-  $("#ad-task").textContent = x.m ? `${who} na ťahu: daj mat${x.k > 1 ? ` ${x.k} ťahmi` : ""}` : `${who} na ťahu: nájdi najlepší ťah${x.d > 1 ? " (viac ťahov)" : ""}`;
+  const who = AD.me === "w" ? (en ? "White" : "Biely") : (en ? "Black" : "Čierny");
+  $("#ad-task").textContent = en
+    ? (x.m ? `${who} to move: mate${x.k > 1 ? ` in ${x.k}` : ""}` : `${who} to move: find the best move${x.d > 1 ? " (multi-move)" : ""}`)
+    : (x.m ? `${who} na ťahu: daj mat${x.k > 1 ? ` ${x.k} ťahmi` : ""}` : `${who} na ťahu: nájdi najlepší ťah${x.d > 1 ? " (viac ťahov)" : ""}`);
   const st = $("#ad-status");
-  st.textContent = AD.msg ? AD.msg.t : "Zahraj najlepší ťah na šachovnici.";
+  st.textContent = AD.msg ? AD.msg.t : (en ? "Play the best move on the board." : "Zahraj najlepší ťah na šachovnici.");
   st.className = "pz-status " + (AD.msg ? AD.msg.cls : "");
   const why = $("#ad-why");
-  if (AD.done && AD.why){ why.hidden = false; why.innerHTML = `<b>Prečo to funguje:</b> ${esc(AD.why)}`; }
+  if (AD.done && AD.why){ why.hidden = false; why.innerHTML = `<b>${en ? "Why it works:" : "Prečo to funguje:"}</b> ${esc(AD.why)}`; }
   else { why.hidden = true; why.innerHTML = ""; }
   $("#ad-hint").hidden = AD.done;
   $("#ad-show").hidden = AD.done;
@@ -4846,8 +4932,12 @@ function dtRenderIdle(){
     const btn = st.idx > 0 ? "Pokračovať" : st.cycles.length ? `Začať ${st.cycle}. cyklus` : "Začať";
     const base = typeof rtSetBase === "function" ? rtSetBase(s.id) : null;
     const rec = myR != null && base != null && Math.abs(base - myR) <= 150 ? '<span class="dtrec">★ Pre tvoju silu</span>' : "";
-    return `<div class="dtset"><div class="dtinfo"><b>${s.t}${rec}</b><small>${s.d} · ${n} úloh${base ? ` · ≈ ${base} Elo` : ""}</small>
-      <small>${st.cycles.length || st.idx ? `${st.cycle}. cyklus: ${Math.min(st.idx, n)}/${n}` : "Ešte nezačatá"}${last ? ` · posledný cyklus ${last.ok}/${last.n} správne za ${fmtMin(last.ms)}` : ""}${best != null && st.cycles.length > 1 ? ` · najrýchlejší ${fmtMin(best)}` : ""}</small>
+    const en = _isEn();
+    const DT_EN = {};
+    const stT = en && DT_EN[s.id] ? DT_EN[s.id][0] : s.t;
+    const stD = en && DT_EN[s.id] ? DT_EN[s.id][1] : s.d;
+    return `<div class="dtset"><div class="dtinfo"><b>${stT}${rec}</b><small>${stD} · ${n} ${en ? "puzzles" : "úloh"}${base ? ` · ≈ ${base} Elo` : ""}</small>
+      <small>${st.cycles.length || st.idx ? (en ? `Cycle ${st.cycle}: ${Math.min(st.idx, n)}/${n}` : `${st.cycle}. cyklus: ${Math.min(st.idx, n)}/${n}`) : (en ? "Not started yet" : "Ešte nezačatá")}${last ? (en ? ` · last cycle ${last.ok}/${last.n} correct in ${fmtMin(last.ms)}` : ` · posledný cyklus ${last.ok}/${last.n} správne za ${fmtMin(last.ms)}`) : ""}${best != null && st.cycles.length > 1 ? ` · ${en ? "fastest" : "najrýchlejší"} ${fmtMin(best)}` : ""}</small>
       <div class="dtbar"><i style="width:${Math.round(Math.min(st.idx, n) / n * 100)}%"></i></div></div>
       <button class="${st.idx > 0 ? "primary" : ""}" data-dts="${s.id}">${btn}</button></div>`;
   };
@@ -4858,7 +4948,8 @@ function dtRenderIdle(){
     const g = DATEL_SETS.filter(x => x.grp === s.grp), n = g.reduce((a, x) => a + x.items.length, 0);
     const run = g.filter(x => { const st = dtState(x.id); return st.idx > 0 || st.cycles.length; }).length;
     const open = DT_GRP_OPEN[s.grp] != null ? DT_GRP_OPEN[s.grp] : run > 0;
-    out.push(`<details class="dtgrp" data-grp="${s.grp}" ${open ? "open" : ""}><summary>${GRP[s.grp] || s.grp}${ADV.has(s.grp) ? '<span class="dtadv">pre pokročilých</span>' : ""}<small>${g.length} sád · ${n} úloh${run ? ` · rozrobené ${run}` : ""}</small></summary><div class="dtsets">${g.map(card).join("")}</div></details>`);
+    const en = _isEn();
+    out.push(`<details class="dtgrp" data-grp="${s.grp}" ${open ? "open" : ""}><summary>${GRP[s.grp] || s.grp}${ADV.has(s.grp) ? `<span class="dtadv">${en ? "advanced" : "pre pokročilých"}</span>` : ""}<small>${en ? `${g.length} sets · ${n} puzzles${run ? ` · in progress ${run}` : ""}` : `${g.length} sád · ${n} úloh${run ? ` · rozrobené ${run}` : ""}`}</small></summary><div class="dtsets">${g.map(card).join("")}</div></details>`);
   }
   $("#dt-sets").innerHTML = out.join("");
 }
@@ -4875,14 +4966,14 @@ function dtLoad(){
   if (DT.st.cycle >= 2 && (it.f.split(" ")[2] || "-") === "-") it = {...it, f:wyMirFen(it.f), tr:wyMirTree(it.tr), h1:wyMirText(it.h1), h2:wyMirText(it.h2), w:wyMirText(it.w), r:it.r && Object.fromEntries(Object.entries(it.r).map(([k, v]) => [wyMu(k), v.map(wyMu)])), mir:true};
   Object.assign(DT, {it, c:new Chess(it.f), node:it.tr, solver:it.f.split(" ")[1], mistakes:0, shown:false, done:false, busy:false, sel:null, flash:null, arrow:null, arrows:null, hs:0, kinds:null, pauseAt:null, t0:performance.now()});
   $("#dt-status").textContent = ""; $("#dt-status").className = "pz-status"; $("#dt-next").hidden = true; $("#dt-hint").hidden = false;
-  $("#dt-hint").disabled = false; $("#dt-hint").textContent = "Nápoveda"; $("#dt-help").innerHTML = ""; $("#dt-why").hidden = true;
+  $("#dt-hint").disabled = false; $("#dt-hint").textContent = _isEn() ? "Hint" : "Nápoveda"; $("#dt-help").innerHTML = ""; $("#dt-why").hidden = true;
   clearInterval(DT.timer); DT.timer = setInterval(dtClock, 250);
   dtRender(); dtClock();
 }
 function dtClock(){
   if (!DT || DT.view !== "run") return;
   const cur = DT.done ? 0 : Math.min(DT_CAP, (DT.pauseAt || performance.now()) - DT.t0), tot = DT.st.res.reduce((a, r) => a + r.ms, 0) + cur;
-  $("#dt-clock").textContent = `úloha ${fmtMin(DT.done ? DT.lastMs || 0 : cur)} · cyklus ${fmtMin(tot)}`;
+  $("#dt-clock").textContent = _isEn() ? `puzzle ${fmtMin(DT.done ? DT.lastMs || 0 : cur)} · cycle ${fmtMin(tot)}` : `úloha ${fmtMin(DT.done ? DT.lastMs || 0 : cur)} · cyklus ${fmtMin(tot)}`;
 }
 function dtRender(){
   if (!DT || DT.view !== "run" || S.tab !== "pz" || S.pzMode !== "datel") return;
@@ -5129,7 +5220,7 @@ function hangingOwn(fen, color){
 }
 function boardSquares(c){ const out = [], files = "abcdefgh"; c.board().forEach((row, r) => row.forEach((p, f) => { if (p) out.push({...p, square: files[f] + (8 - r)}); })); return out; }
 async function explainPuzzle(p){
-  const fen = p.fen, me = fen.split(" ")[1], opp = me === "w" ? "b" : "w";
+  const fen = p.fen, me = fen.split(" ")[1], opp = me === "w" ? "b" : "w", en = _isEn();
   const sol = p.line[0], c0 = new Chess(fen), m = c0.move(uciObj(sol));
   if (!m) return null;
   const after = c0.fen(), pts = [], arrows = [], kinds = new Set(), task = {};
@@ -5140,34 +5231,37 @@ async function explainPuzzle(p){
   const full = [sol, ...rest];
   task.cont = full;
   // 1) mat
-  if (c0.in_checkmate()){ kinds.add("mate"); pts.push("Mat! Kráľ je v šachu, nemá kam ujsť a šach sa nedá zakryť ani odvrátiť braním."); }
+  if (c0.in_checkmate()){ kinds.add("mate"); pts.push(en ? "Checkmate! The king is in check, cannot escape, and the check cannot be blocked or captured." : "Mat! Kráľ je v šachu, nemá kam ujsť a šach sa nedá zakryť ani odvrátiť braním."); }
   else if (p.line.length > 1 && new Chess(playLine(fen, p.line, p.line.length)).in_checkmate()){
     kinds.add("mate");
-    pts.push(`Mat v ${Math.ceil(p.line.length / 2)} ťahoch: ${sanLine(fen, p.line, p.line.length)}. Súper nemá žiadnu obranu.`);
-    if (m.san.includes("+")) pts.push("Prvý ťah je šach – súper musí reagovať a nestihne sa brániť.");
+    pts.push(en ? `Mate in ${Math.ceil(p.line.length / 2)}: ${sanLine(fen, p.line, p.line.length)}. Opponent has no defense.`
+      : `Mat v ${Math.ceil(p.line.length / 2)} ťahoch: ${sanLine(fen, p.line, p.line.length)}. Súper nemá žiadnu obranu.`);
+    if (m.san.includes("+")) pts.push(en ? "The first move is check – your opponent must respond and has no time to defend." : "Prvý ťah je šach – súper musí reagovať a nestihne sa brániť.");
   } else {
     // 2) braný materiál
     if (m.captured){
       const back = hitters(after, m.to, opp);
-      if (!back.length){ kinds.add("win"); pts.push(`Berieš ${ACC[m.captured]} na ${m.to} zadarmo – súper ${PRON[m.captured]} nemôže vziať späť.`); }
-      else if (VAL[m.captured] > VAL[m.piece]){ kinds.add("win"); pts.push(`Berieš ${ACC[m.captured]} ${INS[m.piece]}. Aj keď súper vezme späť, vymenil si slabšiu figúrku za silnejšiu.`); }
-      else pts.push(`Berieš ${ACC[m.captured]} na ${m.to}.`);
+      if (!back.length){ kinds.add("win"); pts.push(en ? `Captures the ${EN_PC[m.captured]} on ${m.to} for free – opponent cannot recapture.` : `Berieš ${ACC[m.captured]} na ${m.to} zadarmo – súper ${PRON[m.captured]} nemôže vziať späť.`); }
+      else if (VAL[m.captured] > VAL[m.piece]){ kinds.add("win"); pts.push(en ? `Captures the ${EN_PC[m.captured]} with your ${EN_PC[m.piece]}. Even if opponent recaptures, you win material.` : `Berieš ${ACC[m.captured]} ${INS[m.piece]}. Aj keď súper vezme späť, vymenil si slabšiu figúrku za silnejšiu.`); }
+      else pts.push(en ? `Captures the ${EN_PC[m.captured]} on ${m.to}.` : `Berieš ${ACC[m.captured]} na ${m.to}.`);
     }
     // 3) vidlička
     const tg = targetsFrom(after, m.to).filter(x => x.t === "k" || VAL[x.t] >= Math.min(5, VAL[m.piece] + 1) || !hitters(after, x.sq, opp).length);
     if (tg.length >= 2){
       kinds.add("fork");
-      pts.push(`Vidlička: ${NAME[m.piece]} na ${m.to} napadá naraz ${tg.map(x => x.t === "k" ? "kráľa (šach)" : `${ACC[x.t]} na ${x.sq}`).join(" aj ")}. Súper nezachráni všetko.`);
+      pts.push(en ? `Fork: your ${EN_PC[m.piece]} on ${m.to} attacks ${tg.map(x => x.t === "k" ? "the king (check)" : `the ${EN_PC[x.t]} on ${x.sq}`).join(" and ")} at once. Opponent can't save both.`
+        : `Vidlička: ${NAME[m.piece]} na ${m.to} napadá naraz ${tg.map(x => x.t === "k" ? "kráľa (šach)" : `${ACC[x.t]} na ${x.sq}`).join(" aj ")}. Súper nezachráni všetko.`);
       tg.forEach(x => arrows.push({from:m.to, to:x.sq, color:"blunder"}));
     } else if (m.san.includes("+") && !m.captured){
-      pts.push("Je to šach – súper musí najprv riešiť kráľa a ty získaš čas.");
+      pts.push(en ? "It's check – opponent must answer the check first, giving you time." : "Je to šach – súper musí najprv riešiť kráľa a ty získaš čas.");
     }
     // 4) odkrytý útok
     if (!tg.length || tg.length < 2){
       const before = new Set(); boardSquares(new Chess(fen)).filter(x => x.color === me && x.square !== m.from).forEach(x => targetsFrom(fen, x.square).forEach(t => before.add(x.square + t.sq)));
       for (const x of boardSquares(new Chess(after)).filter(x => x.color === me && x.square !== m.to)){
         const nt = targetsFrom(after, x.square).filter(t => !before.has(x.square + t.sq) && (t.t === "k" || VAL[t.t] >= 3));
-        if (nt.length){ kinds.add("discover"); pts.push(`Odkrytý útok: ${NAME[m.piece]} uvoľnil cestu a ${NAME[x.type]} na ${x.square} teraz útočí na ${nt[0].t === "k" ? "kráľa" : ACC[nt[0].t] + " na " + nt[0].sq}.`); arrows.push({from:x.square, to:nt[0].sq, color:"blunder"}); break; }
+        if (nt.length){ kinds.add("discover"); pts.push(en ? `Discovered attack: your ${EN_PC[m.piece]} moves out of the way and the ${EN_PC[x.type]} on ${x.square} now attacks ${nt[0].t === "k" ? "the king" : "the " + EN_PC[nt[0].t] + " on " + nt[0].sq}.`
+          : `Odkrytý útok: ${NAME[m.piece]} uvoľnil cestu a ${NAME[x.type]} na ${x.square} teraz útočí na ${nt[0].t === "k" ? "kráľa" : ACC[nt[0].t] + " na " + nt[0].sq}.`); arrows.push({from:x.square, to:nt[0].sq, color:"blunder"}); break; }
       }
     }
     // 5) viazanie
@@ -5179,7 +5273,8 @@ async function explainPuzzle(p){
         while (f >= 0 && f < 8 && r >= 1 && r <= 8){
           const sq = files[f] + r, pc = cb.get(sq);
           if (pc){ if (!first){ if (pc.color !== opp) break; first = {sq, t:pc.type}; } else { if (pc.color === opp && (pc.type === "k" || VAL[pc.type] > VAL[first.t]) && first.t !== "k"){
-            kinds.add("pin"); pts.push(`Viazanie: ${NAME[first.t]} na ${first.sq} sa nemôže pohnúť, lebo by ${pc.type === "k" ? "odkryl kráľa" : "si zobral " + ACC[pc.type] + " za " + (FEM(first.t) ? "ňou" : "ním")}.`);
+            kinds.add("pin"); pts.push(en ? `Pin: the ${EN_PC[first.t]} on ${first.sq} cannot move without ${pc.type === "k" ? "exposing the king" : "losing the " + EN_PC[pc.type] + " behind it"}.`
+              : `Viazanie: ${NAME[first.t]} na ${first.sq} sa nemôže pohnúť, lebo by ${pc.type === "k" ? "odkryl kráľa" : "si zobral " + ACC[pc.type] + " za " + (FEM(first.t) ? "ňou" : "ním")}.`);
             arrows.push({from:m.to, to:sq, color:"blunder"}); } break; } }
           f += df; r += dr;
         }
@@ -5188,18 +5283,20 @@ async function explainPuzzle(p){
     // 6) záchrana vlastnej figúrky
     const hb = pts.length ? [] : hangingOwn(fen, me), ha = hangingOwn(after, me);
     for (const h of hb){
-      if (h.sq === m.from && !ha.some(x => x.sq === m.to)){ kinds.add("save"); pts.push(`${TVOJ(h.t)} ${NAME[h.t]} na ${h.sq} ${BOL(h.t)} a mohla by sa stratiť.`.replace("mohla", FEM(h.t) ? "mohla" : "mohol") + ` Uhýbaš s ${FEM(h.t) ? "ňou" : "ním"} na bezpečné pole.`); break; }
-      if (h.sq !== m.from && !ha.some(x => x.sq === h.sq) && new Chess(after).get(h.sq)){ kinds.add("save"); pts.push(`${TVOJ(h.t)} ${NAME[h.t]} na ${h.sq} ${BOL(h.t)}. Týmto ťahom ${PRON[h.t]} kryješ.`); break; }
+      if (h.sq === m.from && !ha.some(x => x.sq === m.to)){ kinds.add("save"); pts.push(en ? `Your ${EN_PC[h.t]} on ${h.sq} was undefended and could be lost. You move it to a safe square.` : `${TVOJ(h.t)} ${NAME[h.t]} na ${h.sq} ${BOL(h.t)} a mohla by sa stratiť.`.replace("mohla", FEM(h.t) ? "mohla" : "mohol") + ` Uhýbaš s ${FEM(h.t) ? "ňou" : "ním"} na bezpečné pole.`); break; }
+      if (h.sq !== m.from && !ha.some(x => x.sq === h.sq) && new Chess(after).get(h.sq)){ kinds.add("save"); pts.push(en ? `Your ${EN_PC[h.t]} on ${h.sq} was undefended. This move defends it.` : `${TVOJ(h.t)} ${NAME[h.t]} na ${h.sq} ${BOL(h.t)}. Týmto ťahom ${PRON[h.t]} kryješ.`); break; }
     }
     // 7) obrana pred matom
     const pass = fen.split(" "); pass[1] = opp; pass[3] = "-";
     const threat = mateInOne(pass.join(" "));
-    if (threat){ if (!mateInOne(after)){ kinds.add("defend"); } if (!mateInOne(after)) pts.push(`Súper hrozil matom ${sk(threat.san)}. Tento ťah mu ho prekazí.`); }
+    if (threat){ if (!mateInOne(after)){ kinds.add("defend"); } if (!mateInOne(after)) pts.push(en ? `Opponent threatened mate with ${sk(threat.san)}. This move stops it.` : `Súper hrozil matom ${sk(threat.san)}. Tento ťah mu ho prekazí.`); }
     // 8) výsledok línie
     const n = Math.min(full.length, 4), endFen = playLine(fen, full, n), gain = matDiff(endFen, me) - matDiff(fen, me);
     if (gain >= 2 && !kinds.has("mate")) kinds.add("win");
-    if (full.length > 1) pts.push(`Najlepšie pokračovanie: ${sanLine(fen, full, n)}.` + (gain >= 1 ? (/materiál/.test(WHAT(gain)) ? ` Na konci máš navyše ${WHAT(gain)}.` : ` Na konci máš o ${WHAT(gain)} viac.`) : ""));
-    if (!pts.length) pts.push("Tento ťah drží tvoje figúrky v bezpečí a súperovi nedá nič zadarmo.");
+    if (full.length > 1) pts.push(en
+      ? `Best continuation: ${sanLine(fen, full, n)}.` + (gain >= 1 ? ` You end up winning ${WHAT_EN(gain)}.` : "")
+      : `Najlepšie pokračovanie: ${sanLine(fen, full, n)}.` + (gain >= 1 ? (/materiál/.test(WHAT(gain)) ? ` Na konci máš navyše ${WHAT(gain)}.` : ` Na konci máš o ${WHAT(gain)} viac.`) : ""));
+    if (!pts.length) pts.push(en ? "This move keeps your pieces safe and gives your opponent nothing for free." : "Tento ťah drží tvoje figúrky v bezpečí a súperovi nedá nič zadarmo.");
   }
   // 9) prečo bol ťah z partie zlý
   if (p.played){
@@ -5208,31 +5305,36 @@ async function explainPuzzle(p){
       if (pm && pm.san !== m.san){
         const a1 = await evalFen(c1.fen(), 14);
         task.played = {uci:pm.from + pm.to + (pm.promotion || ""), pv:(a1.pv || []).slice(0, 4)};
-        if (a1.score.mate != null && a1.score.mate > 0){ task.punish = {fen:c1.fen(), best:a1.best, mate:true}; pts.push(`V partii sa hralo ${p.played}. Súper potom mohol dať mat: ${sanLine(c1.fen(), a1.pv, a1.score.mate * 2 - 1)}.`); }
+        if (a1.score.mate != null && a1.score.mate > 0){ task.punish = {fen:c1.fen(), best:a1.best, mate:true}; pts.push(en ? `In the game you played ${sk(pm.san)}. Opponent could then deliver mate: ${sanLine(c1.fen(), a1.pv, a1.score.mate * 2 - 1)}.` : `V partii sa hralo ${p.played}. Súper potom mohol dať mat: ${sanLine(c1.fen(), a1.pv, a1.score.mate * 2 - 1)}.`); }
         else if (a1.best){
           const loss = -(matDiff(playLine(c1.fen(), a1.pv, 4), me) - matDiff(c1.fen(), me)), rep = new Chess(c1.fen()).move(uciObj(a1.best));
           const missed = matDiff(playLine(fen, full, Math.min(full.length, 4)), me) - matDiff(fen, me);
           if (loss >= 1) task.punish = {fen:c1.fen(), best:a1.best, loss};
-          pts.push(`V partii sa hralo ${p.played}.` + (loss >= 1 ? ` Súper mohol odpovedať ${sk(rep.san)} a získať ${WHAT(loss)}.`
-            : missed >= 1 ? ` Tým si túto príležitosť prepásol – mohol si získať ${WHAT(missed)}.` : ` Bolo to slabšie – súper by odpovedal ${sk(rep.san)} a mal by lepšiu pozíciu.`));
+          pts.push(en
+            ? `In the game you played ${sk(pm.san)}.` + (loss >= 1 ? ` Opponent could reply ${sk(rep.san)} and win ${WHAT_EN(loss)}.` : missed >= 1 ? ` You missed a chance to win ${WHAT_EN(missed)}.` : ` It was weaker – opponent could reply ${sk(rep.san)} for a better position.`)
+            : `V partii sa hralo ${p.played}.` + (loss >= 1 ? ` Súper mohol odpovedať ${sk(rep.san)} a získať ${WHAT(loss)}.` : missed >= 1 ? ` Tým si túto príležitosť prepásol – mohol si získať ${WHAT(missed)}.` : ` Bolo to slabšie – súper by odpovedal ${sk(rep.san)} a mal by lepšiu pozíciu.`));
         }
       }
     } catch(e){}
   }
   const motif = MOTIF[p.motif] ? p.motif : null;
-  return {pts, arrows, kinds:[...kinds], task, fen, sol:m, tip: motif ? MOTIF[motif].tip : "Pred každým ťahom skontroluj šachy, brania a hrozby – svoje aj súperove."};
+  return {pts, arrows, kinds:[...kinds], task, fen, sol:m, tip: motif ? MOTIF[motif].tip : (en ? "Before every move, check checks, captures, and threats – both yours and your opponent's." : "Pred každým ťahom skontroluj šachy, brania a hrozby – svoje aj súperove.")};
 }
 /* Povinný rozbor po puzzle z vlastných chýb: 1) čo robí tvoj ťah (výber z 3), 2) úloha na šachovnici
    (potrestaj ťah z partie za súpera, alebo pokračuj v riešení). Misia sa pripíše až po rozbore. */
-const AN_KIND = {
+const AN_KIND = _isEn() ? {
+  mate:{t:"Delivers checkmate (or leads to mate)"}, fork:{t:"Fork – attacks two pieces at once"},
+  pin:{t:"Pin – opponent's piece cannot move"}, discover:{t:"Discovered attack – opens the path for another piece"},
+  defend:{t:"Defends against checkmate"}, save:{t:"Saves my threatened piece"}, win:{t:"Wins a free piece / gains material"}}
+: {
   mate:{t:"Dáva mat (alebo k nemu vedie)"}, fork:{t:"Vidlička – útočí na dve figúrky naraz"},
   pin:{t:"Viazanie – súperova figúrka sa nemôže pohnúť"}, discover:{t:"Odkrytý útok – uvoľní cestu inej figúrke"},
   defend:{t:"Bráni sa proti matu"}, save:{t:"Zachraňuje moju ohrozenú figúrku"}, win:{t:"Berie figúrku zadarmo / získa materiál"}};
 const AN_PRI = ["mate","fork","pin","discover","defend","save","win"];
 function anShuffle(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 async function showWhy(z){
-  const box = $("#pz-why");
-  box.hidden = false; box.innerHTML = '<h3>Rozbor riešenia</h3><p class="muted">Stockfish premýšľa…</p>';
+  const box = $("#pz-why"), en = _isEn();
+  box.hidden = false; box.innerHTML = en ? '<h3>Solution review</h3><p class="muted">Stockfish is thinking…</p>' : '<h3>Rozbor riešenia</h3><p class="muted">Stockfish premýšľa…</p>';
   let w = null; try { w = await explainPuzzle(z.p); } catch(e){}
   if (PZ !== z) return;
   if (!w){ z.an = {stage:"done"}; anFinish(z, true); box.hidden = true; return; }
@@ -5266,22 +5368,22 @@ function anStartBoard(z){
 }
 function anRender(z){
   if (PZ !== z) return;
-  const box = $("#pz-why"), a = z.an, w = z.why; box.hidden = false;
-  const step = k => a.n > 1 ? ` <span class="label">krok ${k} z ${a.n}</span>` : "";
+  const box = $("#pz-why"), a = z.an, w = z.why, en = _isEn(); box.hidden = false;
+  const step = k => a.n > 1 ? ` <span class="label">${en ? `step ${k} of ${a.n}` : `krok ${k} z ${a.n}`}</span>` : "";
   if (a.stage === "q"){
-    box.innerHTML = `<h3>Rozbor riešenia${step(1)}</h3><p>Výborne, ťah ${esc(sk(w.sol.san))} si našiel. <b>Prečo funguje?</b> Vyber, čo robí:</p>
+    box.innerHTML = `<h3>${en ? "Solution review" : "Rozbor riešenia"}${step(1)}</h3><p>${en ? `Great job finding ${esc(sk(w.sol.san))}. <b>Why does it work?</b> Pick what it does:` : `Výborne, ťah ${esc(sk(w.sol.san))} si našiel. <b>Prečo funguje?</b> Vyber, čo robí:`}</p>
       <div class="an-opts">${a.q.opts.map(k => `<button data-k="${k}" class="${a.q.bad.has(k) ? "bad" : ""}" ${a.q.bad.has(k) ? "disabled" : ""}>${esc(AN_KIND[k].t)}</button>`).join("")}</div>
-      <p class="muted">${a.q.bad.size ? "To nie je hlavná myšlienka. Pozri sa na šachovnicu ešte raz – čo sa stane po tvojom ťahu?" : "Najprv sa pozri na šachovnicu, potom vyber."}</p>`;
+      <p class="muted">${a.q.bad.size ? (en ? "That's not the main idea. Look at the board again – what happens after your move?" : "To nie je hlavná myšlienka. Pozri sa na šachovnicu ešte raz – čo sa stane po tvojom ťahu?") : (en ? "Look at the board first, then choose." : "Najprv sa pozri na šachovnicu, potom vyber.")}</p>`;
     box.querySelectorAll("[data-k]").forEach(b => b.onclick = () => anPick(z, b.dataset.k));
     return;
   }
   if (a.stage === "board" || a.stage === "shown"){
     const t = a.t, s = t.kind === "punish"
-      ? `V partii sa hralo <b>${esc(z.p.played)}</b>. Teraz si <b>súper</b>: ako by ťa za to potrestal? Zahraj jeho najlepší ťah.`
-      : `Po tvojom ťahu súper odpovedal: <b>${esc(t.r1)}</b>. Ako pokračuješ? Zahraj ďalší ťah.`;
-    const fb = a.stage === "shown" ? `<p class="muted">Správne bolo ${esc(a.board.ans)}. Pozri si šípku.</p><div class="row"><button class="primary" id="an-go">Pokračovať</button></div>`
-      : a.board.tries ? `<p class="muted">Nie celkom. Skús znova (pokus ${a.board.tries + 1} z 3).</p>` : "";
-    box.innerHTML = `<h3>Rozbor riešenia${step(a.q ? 2 : 1)}</h3><p>${s}</p>${fb}`;
+      ? (en ? `In the game you played <b>${esc(sk(enSan(z.p.played)))}</b>. Now you're the <b>opponent</b>: how would they punish it? Play their best move.` : `V partii sa hralo <b>${esc(z.p.played)}</b>. Teraz si <b>súper</b>: ako by ťa za to potrestal? Zahraj jeho najlepší ťah.`)
+      : (en ? `After your move, opponent replied: <b>${esc(t.r1)}</b>. How do you continue? Play the next move.` : `Po tvojom ťahu súper odpovedal: <b>${esc(t.r1)}</b>. Ako pokračuješ? Zahraj ďalší ťah.`);
+    const fb = a.stage === "shown" ? `<p class="muted">${en ? `Best was ${esc(a.board.ans)}. Follow the arrow.` : `Správne bolo ${esc(a.board.ans)}. Pozri si šípku.`}</p><div class="row"><button class="primary" id="an-go">${en ? "Continue" : "Pokračovať"}</button></div>`
+      : a.board.tries ? `<p class="muted">${en ? `Not quite. Try again (attempt ${a.board.tries + 1} of 3).` : `Nie celkom. Skús znova (pokus ${a.board.tries + 1} z 3).`}</p>` : "";
+    box.innerHTML = `<h3>${en ? "Solution review" : "Rozbor riešenia"}${step(a.q ? 2 : 1)}</h3><p>${s}</p>${fb}`;
     const go = $("#an-go"); if (go) go.onclick = () => { a.stage = "done"; anFinish(z); };
     return;
   }
@@ -5292,11 +5394,11 @@ function anRender(z){
   anExplain(z);
 }
 function anExplain(z, needOk){
-  const w = z.why, box = $("#pz-why");
+  const w = z.why, box = $("#pz-why"), en = _isEn();
   box.hidden = false;
-  box.innerHTML = `<h3>Prečo je to správne?</h3><ul>${w.pts.map(t => `<li>${esc(t)}</li>`).join("")}</ul><div class="tip"><b>Myšlienka na zapamätanie:</b> ${esc(w.tip)}</div>` +
-    (needOk ? `<p>Prečítaj si to a povedz nahlas, prečo je ťah dobrý.</p><div class="row"><button class="primary" id="an-ok">Rozumiem</button></div>`
-      : `<div class="row" style="margin-top:10px"><button id="an-manual">🔍 Prejdi si to sám na šachovnici</button></div><p class="muted">Ťahaj za oboch hráčov a Stockfish ti ukáže najlepšie ťahy. Je tam riešenie aj ťah z partie.</p>`);
+  box.innerHTML = `<h3>${en ? "Why is this right?" : "Prečo je to správne?"}</h3><ul>${w.pts.map(t => `<li>${esc(t)}</li>`).join("")}</ul><div class="tip"><b>${en ? "Key takeaway:" : "Myšlienka na zapamätanie:"}</b> ${esc(w.tip)}</div>` +
+    (needOk ? `<p>${en ? "Read it and say out loud why the move is good." : "Prečítaj si to a povedz nahlas, prečo je ťah dobrý."}</p><div class="row"><button class="primary" id="an-ok">${en ? "Got it" : "Rozumiem"}</button></div>`
+      : `<div class="row" style="margin-top:10px"><button id="an-manual">${en ? "🔍 Explore it yourself on the board" : "🔍 Prejdi si to sám na šachovnici"}</button></div><p class="muted">${en ? "Move pieces for both sides and Stockfish will show the best moves. Both the solution and the game move are loaded." : "Ťahaj za oboch hráčov a Stockfish ti ukáže najlepšie ťahy. Je tam riešenie aj ťah z partie."}</p>`);
   const ok = $("#an-ok"); if (ok) ok.onclick = () => { z.an.stage = "done"; anFinish(z); };
   const man = $("#an-manual"); if (man) man.onclick = () => pzManual(z);
 }
@@ -5311,10 +5413,10 @@ function pzManual(z){
   saveAna(); renderAna();
 }
 function anPick(z, k){
-  const a = z.an;
+  const a = z.an, en = _isEn();
   if (k !== a.q.right && !z.why.kinds.includes(k)){ SFX.play("bad"); a.q.bad.add(k); a.q.miss = true; anRender(z); return; }
   SFX.play("ok");
-  if (a.t){ anStartBoard(z); toast("Správne! Ešte jedna úloha na šachovnici."); }
+  if (a.t){ anStartBoard(z); toast(en ? "Correct! One more task on the board." : "Správne! Ešte jedna úloha na šachovnici."); }
   else a.stage = "done";
   if (a.stage === "done") anFinish(z); else { anRender(z); renderPuzzle(); }
 }
@@ -5331,7 +5433,7 @@ function anSquare(sq){
     const judge = good => {
       if (PZ !== z) return;
       z.an.checking = false;
-      if (good){ SFX.play("ok"); z.an.stage = "done"; toast("Presne tak!"); anFinish(z); return; }
+      if (good){ SFX.play("ok"); z.an.stage = "done"; toast(_isEn() ? "Exactly right!" : "Presne tak!"); anFinish(z); return; }
       SFX.play("bad"); c.undo(); B.lastMv = null; B.wrong = sq; B.tries++;
       if (B.tries >= 3){
         const r = c.move(uciObj(want)); B.ans = r ? sk(r.san) : want; B.lastMv = r;
@@ -5535,48 +5637,70 @@ function moveFeatures(fen, uci, prev){
 }
 /* slovné hodnotenie pozície z pohľadu bieleho (výherná šanca 0–100) */
 function evalWords(w){
+  if (_isEn()){
+    if (w >= 90) return "White is winning"; if (w >= 70) return "White is clearly better"; if (w >= 57) return "White is slightly better";
+    if (w > 43) return "the position is equal"; if (w > 30) return "Black is slightly better"; if (w > 10) return "Black is clearly better"; return "Black is winning";
+  }
   if (w >= 90) return "biely vyhráva"; if (w >= 70) return "biely je jasne lepšie"; if (w >= 57) return "biely je trochu lepšie";
   if (w > 43) return "pozícia je vyrovnaná"; if (w > 30) return "čierny je trochu lepšie"; if (w > 10) return "čierny je jasne lepšie"; return "čierny vyhráva";
 }
+const WHAT_EN = v => v >= 9 ? "the queen" : v >= 5 ? "a rook" : v >= 3 ? "a piece" : v >= 2 ? "material" : "a pawn";
 function explainMove(i){
   const G = S.G, A = S.A, C = S.C; if (!G || !A || !C || !A[i] || !A[i+1]) return null;
-  const mv = G.moves[i], fen = G.fens[i], c = C[i], a = A[i], b = A[i+1];
-  const who = mv.color === "w" ? "Biely" : "Čierny";
+  const mv = G.moves[i], fen = G.fens[i], c = C[i], a = A[i], b = A[i+1], en = _isEn();
+  const who = mv.color === "w" ? (en ? "White" : "Biely") : (en ? "Black" : "Čierny");
   const f = moveFeatures(fen, mv.uci, G.moves[i-1]);
   const best = a.best && a.best !== mv.uci ? moveFeatures(fen, a.best) : null;
-  const head = c.cls === "best" ? "najlepší ťah, presne ako Stockfish" : c.cls === "ok" ? "dobrý ťah" : CLS_LABEL[c.cls];
+  const head = c.cls === "best" ? (en ? "best move, just like Stockfish" : "najlepší ťah, presne ako Stockfish")
+    : c.cls === "ok" ? (en ? "good move" : "dobrý ťah") : CLS_LABEL[c.cls];
   const out = {head, pts:[...f.pts], better:null, reply:null, arrows:f.arrows};
   // výhodné braní, ktoré na prvý pohľad vyzerá ako zlá výmena: ukáž, prečo sa oplatí
   if (!CLS_LABEL[c.cls] && f.m && f.m.captured){
-    const k = out.pts.findIndex(t => t.includes("ale súper môže vziať späť"));
-    if (k >= 0) out.pts[k] = `Berie ${ACC[f.m.captured]} na ${f.m.to}. Súper môže vziať späť, ale Stockfish ukazuje, že sa to oplatí: ${sanLine(fen, [mv.uci, ...(b.pv || [])], 4)}.`;
+    const k = out.pts.findIndex(t => t.includes(en ? "but opponent can recapture" : "ale súper môže vziať späť"));
+    if (k >= 0) out.pts[k] = en
+      ? `Captures the ${EN_PC[f.m.captured]} on ${f.m.to}. Opponent can recapture, but Stockfish shows it pays off: ${sanLine(fen, [mv.uci, ...(b.pv || [])], 4)}.`
+      : `Berie ${ACC[f.m.captured]} na ${f.m.to}. Súper môže vziať späť, ale Stockfish ukazuje, že sa to oplatí: ${sanLine(fen, [mv.uci, ...(b.pv || [])], 4)}.`;
   }
-  if (!out.pts.length) out.pts.push(c.cls === "best" || c.cls === "ok" ? "Pokojný ťah – figúrky ostávajú v bezpečí a súper nič nezíska." : "Ťah na pohľad nič nepokazí, ale prehliada dôležitejšiu vec v pozícii.");
+  if (!out.pts.length) out.pts.push(c.cls === "best" || c.cls === "ok"
+    ? (en ? "Quiet move – pieces stay safe and the opponent gets nothing." : "Pokojný ťah – figúrky ostávajú v bezpečí a súper nič nezíska.")
+    : (en ? "The move looks harmless, but it misses something more important in the position." : "Ťah na pohľad nič nepokazí, ale prehliada dôležitejšiu vec v pozícii."));
   // prečo chyba: čo súper teraz môže (z výpočtu po ťahu)
   if (CLS_LABEL[c.cls] && S.I && S.I[i]){
-    if (b.score.mate != null && b.score.mate > 0) out.reply = `Súper má teraz mat v ${b.score.mate}: ${sanLine(G.fens[i+1], b.pv, b.score.mate * 2 - 1)}.`;
+    if (b.score.mate != null && b.score.mate > 0) out.reply = en
+      ? `Opponent now has mate in ${b.score.mate}: ${sanLine(G.fens[i+1], b.pv, b.score.mate * 2 - 1)}.`
+      : `Súper má teraz mat v ${b.score.mate}: ${sanLine(G.fens[i+1], b.pv, b.score.mate * 2 - 1)}.`;
     else if (b.best){
       const loss = -matGain(G.fens[i+1], b.pv, mv.color, 4), rep = new Chess(G.fens[i+1]).move(uciObj(b.best));
       const rf = rep ? moveFeatures(G.fens[i+1], b.best, mv) : null;
       const tag = rf && rf.tags && rf.tags.length ? ` (${rf.tags[0]})` : "";
-      if (rep && loss >= 1) out.reply = `Súper odpovie ${sk(rep.san)}${tag} a získa ${WHAT(loss)}. Pokračovanie: ${sanLine(G.fens[i+1], b.pv, 4)}.`;
-      else if (rep && rf && rf.tags && rf.tags.length && rf.pts.length) out.reply = `Súper odpovie ${sk(rep.san)}${tag} – ${rf.pts[0].charAt(0).toLowerCase() + rf.pts[0].slice(1)}`;
+      if (rep && loss >= 1) out.reply = en
+        ? `Opponent replies ${sk(rep.san)}${tag} and wins ${WHAT_EN(loss)}. Continuation: ${sanLine(G.fens[i+1], b.pv, 4)}.`
+        : `Súper odpovie ${sk(rep.san)}${tag} a získa ${WHAT(loss)}. Pokračovanie: ${sanLine(G.fens[i+1], b.pv, 4)}.`;
+      else if (rep && rf && rf.tags && rf.tags.length && rf.pts.length) out.reply = en
+        ? `Opponent replies ${sk(rep.san)}${tag} – ${rf.pts[0].charAt(0).toLowerCase() + rf.pts[0].slice(1)}`
+        : `Súper odpovie ${sk(rep.san)}${tag} – ${rf.pts[0].charAt(0).toLowerCase() + rf.pts[0].slice(1)}`;
     }
   }
   // lepší ťah a prečo
   const showBetter = best && best.m && (CLS_LABEL[c.cls] || c.drop >= 5);
   if (showBetter){
-    let t = `${CLS_LABEL[c.cls] ? "Lepšie bolo" : "Stockfish by hral"} ${sk(best.m.san)}`;
-    if (c.missedMate && a.score.mate) t = `Bol tu mat v ${a.score.mate}: ${sanLine(fen, a.pv, a.score.mate * 2 - 1)}`;
+    let t = `${CLS_LABEL[c.cls] ? (en ? "Better was" : "Lepšie bolo") : (en ? "Stockfish would play" : "Stockfish by hral")} ${sk(best.m.san)}`;
+    if (c.missedMate && a.score.mate) t = en
+      ? `There was mate in ${a.score.mate}: ${sanLine(fen, a.pv, a.score.mate * 2 - 1)}`
+      : `Bol tu mat v ${a.score.mate}: ${sanLine(fen, a.pv, a.score.mate * 2 - 1)}`;
     else if (best.pts.length) t += " – " + best.pts[0].charAt(0).toLowerCase() + best.pts[0].slice(1).replace(/\.$/, "");
     const gain = matGain(fen, a.pv, mv.color, 4);
-    if (!c.missedMate && gain >= 1 && !(best.pts[0] || "").startsWith("Berie")) t += `. Po ${sanLine(fen, a.pv, 4)} získa ${WHAT(gain)}`;
+    if (!c.missedMate && gain >= 1 && !(best.pts[0] || "").startsWith(en ? "Captures" : "Berie")) t += en
+      ? `. After ${sanLine(fen, a.pv, 4)}, wins ${WHAT_EN(gain)}`
+      : `. Po ${sanLine(fen, a.pv, 4)} získa ${WHAT(gain)}`;
     out.better = t + ".";
     out.bestArrow = {from:a.best.slice(0,2), to:a.best.slice(2,4)};
   }
   const t0 = fen.split(" ")[1], t1 = G.fens[i+1].split(" ")[1];
   const w0 = winp(whiteCp(a.score, t0)), w1 = winp(whiteCp(b.score, t1));
-  out.eval = `Pred ťahom: ${evalWords(w0)} (${fmtEval(a.score, t0)}). Po ťahu: ${evalWords(w1)} (${fmtEval(b.score, t1)}).`;
+  out.eval = en
+    ? `Before move: ${evalWords(w0)} (${fmtEval(a.score, t0)}). After move: ${evalWords(w1)} (${fmtEval(b.score, t1)}).`
+    : `Pred ťahom: ${evalWords(w0)} (${fmtEval(a.score, t0)}). Po ťahu: ${evalWords(w1)} (${fmtEval(b.score, t1)}).`;
   out.who = who;
   return out;
 }
@@ -5587,10 +5711,10 @@ function renderMoveWhy(){
   if (!S.G || !S.A || !S.C || p < 1){ box.hidden = true; return; }
   let w = null; try { w = explainMove(p - 1); } catch(e){ console.warn(e); }
   if (!w){ box.hidden = true; return; }
-  const m = S.G.moves[p - 1], c = S.C[p - 1];
+  const m = S.G.moves[p - 1], c = S.C[p - 1], en = _isEn();
   box.hidden = false;
   box.className = "why mvwhy k-" + c.cls;
-  box.innerHTML = `<h3>Prečo ${m.no}${m.color === "w" ? "." : "…"} ${esc(sk(m.san))}? <span class="label">${w.who} · ${esc(w.head)}</span></h3>
+  box.innerHTML = `<h3>${en ? "Why" : "Prečo"} ${m.no}${m.color === "w" ? "." : "…"} ${esc(sk(m.san))}? <span class="label">${w.who} · ${esc(w.head)}</span></h3>
     <ul>${w.pts.map(t => `<li>${esc(t)}</li>`).join("")}${w.reply ? `<li class="bad">${esc(w.reply)}</li>` : ""}${w.better ? `<li class="good">${esc(w.better)}</li>` : ""}</ul>
     <div class="wtip">${esc(w.eval)}</div>`;
 }
@@ -5734,37 +5858,46 @@ function hzNext(){
 }
 function hzRender(){
   if (!HZ || S.tab !== "pz" || S.pzMode !== "thr" || HZ.view !== "run") return;
-  const C = HZ.cur, it = C.it, hl = {};
+  const C = HZ.cur, it = C.it, hl = {}, en = _isEn();
   if (C.last){ hl[C.last.from] = "last"; hl[C.last.to] = "last"; }
   if (C.sel){ hl[C.sel] = "sel"; for (const m of C.c.moves({square:C.sel, verbose:true})) hl[m.to] = "tgt" + (m.captured ? " cap" : ""); }
   if (C.flash) for (const sq of C.flash.sqs) hl[sq] = C.flash.cls;
   if (C.stage === "ask" && !C.done && it.mv) hl[it.mv.slice(0,2)] = "hint";
   drawBoard($("#board"), C.c.fen(), {orient:C.me, hl, arrows:C.arrows});
-  const side = C.me === "w" ? "bielych" : "čiernych";
-  $("#hz-pos").textContent = `Úloha ${HZ.i + 1} z ${HZ.list.length} · ${C.type === "S" ? "Je ťah bezpečný?" : "Čo hrozí?"}`;
+  const side = en ? (C.me === "w" ? "White" : "Black") : (C.me === "w" ? "bielych" : "čiernych");
+  $("#hz-pos").textContent = en
+    ? `Puzzle ${HZ.i + 1} of ${HZ.list.length} · ${C.type === "S" ? "Is the move safe?" : "What is the threat?"}`
+    : `Úloha ${HZ.i + 1} z ${HZ.list.length} · ${C.type === "S" ? "Je ťah bezpečný?" : "Čo hrozí?"}`;
   $("#hz-score").textContent = `${HZ.ok} ✓`;
-  const task = {
+  const task = en ? {
+    thr: `You play ${side}. What is your opponent threatening? Play their threat move, or click "No threat".`,
+    def: "Now defend! Play a move that stops the opponent's threat.",
+    ask: `You play ${side}. You want to play ${it.mv ? uciSan(it.f, it.mv) : "this move"} (yellow arrow). Is it safe?`,
+    pun: "Show how your opponent punishes this move. Play their reply."
+  }[C.stage] : {
     thr: `Hráš za ${side}. Súper by rád zahral… Čo ti hrozí? Zahraj súperov ťah, ktorým hrozí. Alebo klikni „Nič nehrozí“.`,
     def: "Teraz sa bráň! Zahraj ťah, po ktorom súper hrozbu nevykoná.",
     ask: `Hráš za ${side}. Chceš zahrať ${it.mv ? uciSan(it.f, it.mv) : "ťah"} (žltá šípka). Je bezpečný?`,
     pun: "Ukáž, ako súper tento ťah potrestá. Zahraj jeho odpoveď."
   }[C.stage];
-  $("#hz-task").textContent = C.done ? (C.fail ? "Hotovo. Nabudúce to nájdeš sám!" : "Výborne!") : task;
+  $("#hz-task").textContent = C.done ? (C.fail ? (en ? "Done. Next time you'll spot it!" : "Hotovo. Nabudúce to nájdeš sám!") : (en ? "Great job!" : "Výborne!")) : task;
   const st = $("#hz-status"); st.textContent = C.msg ? C.msg.t : ""; st.className = "pz-status " + (C.msg ? C.msg.cls : "");
   $("#hz-none").hidden = C.done || C.stage !== "thr" || C.reveal;
   $("#hz-yes").hidden = $("#hz-no").hidden = C.done || C.stage !== "ask";
   $("#hz-next").hidden = !C.done;
-  $("#hz-next").textContent = HZ.i + 1 >= HZ.list.length ? "Výsledok" : "Ďalšia úloha";
-  $("#hz-src").textContent = it.src ? `Pozícia podľa: ${it.src}` : "";
-  const hw = $("#hz-why"); hw.hidden = !(C.done && it.w); if (C.done && it.w) hw.innerHTML = `<b>Vysvetlenie:</b> ${it.w}`;
-  $("#poscap").textContent = C.stage === "thr" || C.stage === "pun" ? "Teraz ťaháš figúrkami súpera." : "Teraz ťaháš svojimi figúrkami.";
+  $("#hz-next").textContent = HZ.i + 1 >= HZ.list.length ? (en ? "Results" : "Výsledok") : (en ? "Next puzzle" : "Ďalšia úloha");
+  $("#hz-src").textContent = it.src ? `${en ? "Position from" : "Pozícia podľa"}: ${it.src}` : "";
+  const hw = $("#hz-why"); hw.hidden = !(C.done && it.w); if (C.done && it.w) hw.innerHTML = `<b>${en ? "Explanation" : "Vysvetlenie"}:</b> ${it.w}`;
+  $("#poscap").textContent = C.stage === "thr" || C.stage === "pun"
+    ? (en ? "Now moving opponent's pieces." : "Teraz ťaháš figúrkami súpera.")
+    : (en ? "Now moving your own pieces." : "Teraz ťaháš svojimi figúrkami.");
 }
 /* opis hrozby: mat, branie alebo iná hrozba */
 function hzDescribe(fen, u){
-  const c = new Chess(fen), m = c.move(uciObj(u));
+  const c = new Chess(fen), m = c.move(uciObj(u)), en = _isEn();
   if (!m) return "";
-  if (c.in_checkmate()) return `mat ${sk(m.san)}`;
-  if (m.captured) return `${sk(m.san)} – zobral by ti ${PIECE_ACC[m.captured]}`;
+  if (c.in_checkmate()) return `${en ? "mate" : "mat"} ${sk(m.san)}`;
+  if (m.captured) return en ? `${sk(m.san)} – would take your ${EN_PC[m.captured]}` : `${sk(m.san)} – zobral by ti ${PIECE_ACC[m.captured]}`;
   return sk(m.san);
 }
 function hzSquare(sq){
@@ -5785,27 +5918,29 @@ function hzSquare(sq){
   hzRender();
 }
 function hzMove(board, from, to, promo){
-  const C = HZ.cur, it = C.it, fen = board.fen(), m = board.move({from, to, promotion:promo || "q"}); C.sel = null;
+  const C = HZ.cur, it = C.it, fen = board.fen(), m = board.move({from, to, promotion:promo || "q"}), en = _isEn(); C.sel = null;
   if (!m) return;
   const u = m.from + m.to + (m.promotion || "");
   board.load(fen); // vstupná pozícia ostáva, ťah sa ukáže šípkou alebo sa zahrá nižšie
   if (C.stage === "thr"){
     if (it.id[0] === "T" && hzIn(u, it.thr)){
       C.arrows = [{from, to, color:"blunder"}]; SFX.play("ok");
-      C.msg = {t:`Áno! Súper hrozí: ${hzDescribe(fen, u)}.`, cls:"ok"}; C.stage = "def"; C.tries = 0; hzRender(); return;
+      C.msg = {t: en ? `Yes! Opponent threatens: ${hzDescribe(fen, u)}.` : `Áno! Súper hrozí: ${hzDescribe(fen, u)}.`, cls:"ok"}; C.stage = "def"; C.tries = 0; hzRender(); return;
     }
     C.flash = {sqs:[to], cls:"wrong"};
-    hzWrong(it.id[0] === "N" ? "Tento ťah súperovi nič nezíska." : "Týmto ťahom súper nič nezíska. Pozri sa, čo je nekryté a kde je tvoj kráľ.");
+    hzWrong(it.id[0] === "N"
+      ? (en ? "This move doesn't win anything for your opponent." : "Tento ťah súperovi nič nezíska.")
+      : (en ? "That move doesn't win anything for your opponent. Look at undefended pieces and your king." : "Týmto ťahom súper nič nezíska. Pozri sa, čo je nekryté a kde je tvoj kráľ."));
     return;
   }
-  if (C.reveal && C.forceOnly && !uciEq(u, C.forceOnly)){ C.flash = {sqs:[to], cls:"wrong"}; C.msg = {t:"Zahraj ťah podľa zelenej šípky.", cls:"bad"}; hzRender(); return; }
+  if (C.reveal && C.forceOnly && !uciEq(u, C.forceOnly)){ C.flash = {sqs:[to], cls:"wrong"}; C.msg = {t: en ? "Play the move shown by the green arrow." : "Zahraj ťah podľa zelenej šípky.", cls:"bad"}; hzRender(); return; }
   if (C.stage === "def"){
     const c = C.c, mm = c.move({from, to, promotion:promo || "q"});
     if (!mm) return;
     SFX.move(mm);
     if (hzIn(u, it.def)){ C.last = mm; C.arrows = []; return hzFinish(); }
     c.undo(); C.flash = {sqs:[to], cls:"wrong"};
-    hzWrong(`Po ${sk(mm.san)} súper hrozbu aj tak vykoná.`, true);
+    hzWrong(en ? `After ${sk(mm.san)}, opponent can still carry out the threat.` : `Po ${sk(mm.san)} súper hrozbu aj tak vykoná.`, true);
     return;
   }
   if (C.stage === "pun"){
@@ -5814,44 +5949,44 @@ function hzMove(board, from, to, promo){
     SFX.move(mm);
     if (hzIn(u, it.pun)){ C.last = mm; C.arrows = []; return hzFinish(); }
     c.undo(); C.flash = {sqs:[to], cls:"wrong"};
-    hzWrong(`${sk(mm.san)} ten ťah netrestá.`, true);
+    hzWrong(en ? `${sk(mm.san)} does not punish that move.` : `${sk(mm.san)} ten ťah netrestá.`, true);
   }
 }
 /* zlý pokus: po druhom sa ukáže riešenie šípkou */
 function hzWrong(t){
-  const C = HZ.cur, it = C.it; SFX.play("bad");
+  const C = HZ.cur, it = C.it, en = _isEn(); SFX.play("bad");
   C.tries++;
-  if (C.tries < 2){ C.msg = {t: t + " Skús ešte raz.", cls:"bad"}; hzRender(); return; }
+  if (C.tries < 2){ C.msg = {t: t + (en ? " Try again." : " Skús ešte raz."), cls:"bad"}; hzRender(); return; }
   C.fail = true; C.tries = 0;
   if (C.stage === "thr"){
-    if (it.id[0] === "N"){ C.msg = {t: t + " Tu súper nič nehrozí.", cls:"bad"}; return hzFinish(); }
+    if (it.id[0] === "N"){ C.msg = {t: t + (en ? " There is no threat here." : " Tu súper nič nehrozí."), cls:"bad"}; return hzFinish(); }
     const u = it.thr[0], fen = flipFen(C.c.fen());
     C.arrows = [{...uciArrow(u), color:"blunder"}];
-    C.msg = {t:`Súper hrozí: ${hzDescribe(fen, u)}. Teraz sa bráň!`, cls:"bad"}; C.stage = "def"; hzRender(); return;
+    C.msg = {t: en ? `Opponent threatens: ${hzDescribe(fen, u)}. Now defend!` : `Súper hrozí: ${hzDescribe(fen, u)}. Teraz sa bráň!`, cls:"bad"}; C.stage = "def"; hzRender(); return;
   }
   const sol = C.stage === "def" ? it.def[0] : it.pun[0];
   C.reveal = true;
   C.arrows = (C.stage === "def" ? C.arrows.filter(a => a.color === "blunder") : []).concat([{...uciArrow(sol), color:"best"}]);
-  C.msg = {t: t + ` Správne je ${uciSan(C.c.fen(), sol)}. Zahraj ho podľa zelenej šípky.`, cls:"bad"};
+  C.msg = {t: t + (en ? ` Best is ${uciSan(C.c.fen(), sol)}. Play it following the green arrow.` : ` Správne je ${uciSan(C.c.fen(), sol)}. Zahraj ho podľa zelenej šípky.`), cls:"bad"};
   C.forceOnly = sol; hzRender();
 }
 function hzNone(){
-  const C = HZ && HZ.cur; if (!C || C.done || C.stage !== "thr") return;
-  if (C.it.id[0] === "N"){ C.msg = {t:"Správne, súper teraz nič nehrozí. Môžeš hrať svoj plán.", cls:"ok"}; return hzFinish(); }
-  hzWrong("Ale áno, súper niečo hrozí!");
+  const C = HZ && HZ.cur, en = _isEn(); if (!C || C.done || C.stage !== "thr") return;
+  if (C.it.id[0] === "N"){ C.msg = {t: en ? "Correct, there is no threat right now. You can play your own plan." : "Správne, súper teraz nič nehrozí. Môžeš hrať svoj plán.", cls:"ok"}; return hzFinish(); }
+  hzWrong(en ? "Actually, your opponent does have a threat!" : "Ale áno, súper niečo hrozí!");
 }
 function hzAnswer(yes){
-  const C = HZ && HZ.cur; if (!C || C.done || C.stage !== "ask") return;
+  const C = HZ && HZ.cur, en = _isEn(); if (!C || C.done || C.stage !== "ask") return;
   const it = C.it;
   if (it.safe){
-    if (yes){ C.msg = {t:"Správne, ťah je bezpečný. Súper ním nič nezíska.", cls:"ok"}; C.last = C.c.move(uciObj(it.mv)); C.arrows = []; return hzFinish(); }
-    C.fail = true; C.msg = {t:"Tento ťah bol bezpečný. Súper po ňom nič nezíska.", cls:"bad"}; C.last = C.c.move(uciObj(it.mv)); C.arrows = []; return hzFinish();
+    if (yes){ C.msg = {t: en ? "Correct, the move is safe. Opponent wins nothing." : "Správne, ťah je bezpečný. Súper ním nič nezíska.", cls:"ok"}; C.last = C.c.move(uciObj(it.mv)); C.arrows = []; return hzFinish(); }
+    C.fail = true; C.msg = {t: en ? "That move was actually safe. Opponent wins nothing after it." : "Tento ťah bol bezpečný. Súper po ňom nič nezíska.", cls:"bad"}; C.last = C.c.move(uciObj(it.mv)); C.arrows = []; return hzFinish();
   }
   C.last = C.c.move(uciObj(it.mv)); C.arrows = []; C.stage = "pun"; C.tries = 0; SFX.play(yes ? "bad" : "ok");
   if (yes){
     C.fail = true; C.reveal = true; C.forceOnly = it.pun[0]; C.arrows = [{...uciArrow(it.pun[0]), color:"best"}];
-    C.msg = {t:`Pozor, nie je bezpečný! Súper odpovie ${uciSan(C.c.fen(), it.pun[0])}. Zahraj to podľa zelenej šípky.`, cls:"bad"};
-  } else C.msg = {t:"Správne, nie je bezpečný!", cls:"ok"};
+    C.msg = {t: en ? `Watch out, it's not safe! Opponent replies ${uciSan(C.c.fen(), it.pun[0])}. Play it following the green arrow.` : `Pozor, nie je bezpečný! Súper odpovie ${uciSan(C.c.fen(), it.pun[0])}. Zahraj to podľa zelenej šípky.`, cls:"bad"};
+  } else C.msg = {t: en ? "Correct, it's not safe!" : "Správne, nie je bezpečný!", cls:"ok"};
   hzRender();
 }
 function hzFinish(){
@@ -6149,30 +6284,35 @@ const uciArrow = u => ({from:u.slice(0,2), to:u.slice(2,4)});
 const uciSan = (fen, u) => { const m = new Chess(fen).move(uciObj(u)); return m ? sk(m.san) : u; };
 function detRender(){
   if (!DET || S.tab !== "tr" || S.trView !== "det") return;
-  const D = DET, hl = {}, g = D.g;
+  const D = DET, hl = {}, g = D.g, en = _isEn();
   const lm = D.last || (D.prev && !D.done ? D.prev : null);
   if (lm){ hl[lm.from] = "last"; hl[lm.to] = "last"; }
   if (D.sel){ hl[D.sel] = "sel"; for (const m of D.c.moves({square:D.sel, verbose:true})) hl[m.to] = "tgt"; }
   if (D.flash) for (const sq of D.flash.sqs) hl[sq] = D.flash.cls;
   drawBoard($("#board"), D.c.fen(), {orient:D.color, hl, arrows: D.arrow && !D.done ? [D.arrow] : []});
   const no = D.played.no, dot = D.color === "w" ? "." : "…";
-  $("#det-src").textContent = `${g.event || "Partia"}${g.date ? ", " + fmtDate(g.date) : ""} · ${no}${dot} ťah`;
-  $("#det-task").textContent = D.done ? (D.ok ? "Prípad vyriešený!" : "Prípad uzavretý") : `V partii si zahral ${sk(D.played.san)}${CLS_GLYPH[D.mo.cls] || "?"} Nájdi lepší ťah!`;
-  $("#det-tries").innerHTML = `<span class="label">Pokusy</span>` + [0,1,2].map(k => `<i class="${k < D.tries ? "used" : ""}"></i>`).join("");
+  $("#det-src").textContent = `${g.event || (en ? "Game" : "Partia")}${g.date ? ", " + fmtDate(g.date) : ""} · ${en ? `move ${no}${dot}` : `${no}${dot} ťah`}`;
+  $("#det-task").textContent = D.done ? (D.ok ? (en ? "Case solved!" : "Prípad vyriešený!") : (en ? "Case closed" : "Prípad uzavretý"))
+    : (en ? `In the game you played ${sk(D.played.san)}${CLS_GLYPH[D.mo.cls] || "?"} Find a better move!` : `V partii si zahral ${sk(D.played.san)}${CLS_GLYPH[D.mo.cls] || "?"} Nájdi lepší ťah!`);
+  $("#det-tries").innerHTML = `<span class="label">${en ? "Attempts" : "Pokusy"}</span>` + [0,1,2].map(k => `<i class="${k < D.tries ? "used" : ""}"></i>`).join("");
   const st = $("#det-status");
-  st.textContent = D.msg ? D.msg.t : D.done ? "" : D.reveal ? `Správne bolo ${uciSan(D.fen, D.a.best)}. Zahraj ho podľa šípky.` : "Hráš za " + (D.color === "w" ? "bieleho" : "čierneho") + ". Klikni na figúrku a potom na pole.";
+  st.textContent = D.msg ? D.msg.t : D.done ? "" : D.reveal
+    ? (en ? `Best was ${uciSan(D.fen, D.a.best)}. Play it following the arrow.` : `Správne bolo ${uciSan(D.fen, D.a.best)}. Zahraj ho podľa šípky.`)
+    : (en ? `Playing ${D.color === "w" ? "White" : "Black"}. Click a piece, then a square.` : "Hráš za " + (D.color === "w" ? "bieleho" : "čierneho") + ". Klikni na figúrku a potom na pole.");
   st.className = "pz-status " + (D.msg ? D.msg.cls : "");
   const why = $("#det-why");
   if (D.done){
     const tip = MOTIF[D.mo.motif] ? MOTIF[D.mo.motif] : null;
     why.hidden = false;
-    why.innerHTML = `<h3>${D.ok ? "Výborne, detektív!" : "Teraz už vieš, čo bolo správne."}</h3><ul>
-      <li>V partii bolo zahrané ${esc(sk(D.played.san))}. Stockfish odporúča ${esc(uciSan(D.fen, D.a.best))}.</li>
-      ${D.okSan && D.okSan !== uciSan(D.fen, D.a.best) ? `<li>Tvoj ťah ${esc(D.okSan)} je tiež dobrý.</li>` : ""}</ul>
+    why.innerHTML = `<h3>${D.ok ? (en ? "Great job, detective!" : "Výborne, detektív!") : (en ? "Now you know the best move." : "Teraz už vieš, čo bolo správne.")}</h3><ul>
+      <li>${en ? `In the game you played ${esc(sk(D.played.san))}. Stockfish recommends ${esc(uciSan(D.fen, D.a.best))}.` : `V partii bolo zahrané ${esc(sk(D.played.san))}. Stockfish odporúča ${esc(uciSan(D.fen, D.a.best))}.`}</li>
+      ${D.okSan && D.okSan !== uciSan(D.fen, D.a.best) ? `<li>${en ? `Your move ${esc(D.okSan)} is also good.` : `Tvoj ťah ${esc(D.okSan)} je tiež dobrý.`}</li>` : ""}</ul>
       ${tip ? `<div class="note"><b>${esc(tip.t)}:</b> ${esc(tip.tip)}</div>` : ""}`;
   } else why.hidden = true;
   $("#det-done").hidden = !D.done;
-  $("#poscap").textContent = D.done ? "Detektív je hotový." : D.reveal ? "Pokusy sa minuli. Zahraj ťah podľa šípky." : `Zostáva ${3 - D.tries} ${3 - D.tries === 1 ? "pokus" : "pokusy"}`;
+  $("#poscap").textContent = D.done ? (en ? "Detective complete." : "Detektív je hotový.")
+    : D.reveal ? (en ? "Out of attempts. Play the move shown by the arrow." : "Pokusy sa minuli. Zahraj ťah podľa šípky.")
+    : (en ? `${3 - D.tries} ${3 - D.tries === 1 ? "attempt" : "attempts"} left` : `Zostáva ${3 - D.tries} ${3 - D.tries === 1 ? "pokus" : "pokusy"}`);
 }
 function detSquare(sq){
   const D = DET; if (!D || D.done || D.busy) return;
@@ -6192,34 +6332,34 @@ function detGood(fenBefore, r, cAfter){
   return wb - wa < 10;
 }
 async function detMove(from, to, promo){
-  const D = DET, c = D.c, fen = c.fen(), m = c.move({from, to, promotion: promo || "q"}); D.sel = null;
+  const D = DET, c = D.c, fen = c.fen(), m = c.move({from, to, promotion: promo || "q"}), en = _isEn(); D.sel = null;
   if (!m) return;
   SFX.move(m);
   const u = m.from + m.to + (m.promotion || ""), best = D.a.best;
   const isBest = u === best || (u.slice(0,4) === best.slice(0,4) && !best[4]);
   if (D.reveal){
     if (isBest) return detFinish(false, m);
-    SFX.play("bad"); c.load(fen); D.flash = {sqs:[m.to], cls:"wrong"}; D.msg = {t:"Zahraj ťah podľa šípky.", cls:"bad"}; detRender(); return;
+    SFX.play("bad"); c.load(fen); D.flash = {sqs:[m.to], cls:"wrong"}; D.msg = {t: en ? "Play the move shown by the arrow." : "Zahraj ťah podľa šípky.", cls:"bad"}; detRender(); return;
   }
-  if (u === D.played.uci){ SFX.play("bad"); c.load(fen); D.flash = {sqs:[m.to], cls:"wrong"}; D.msg = {t:"To je ťah z partie. Hľadaj iný, lepší!", cls:"bad"}; detRender(); return; }
+  if (u === D.played.uci){ SFX.play("bad"); c.load(fen); D.flash = {sqs:[m.to], cls:"wrong"}; D.msg = {t: en ? "That's the move from the game. Find a better one!" : "To je ťah z partie. Hľadaj iný, lepší!", cls:"bad"}; detRender(); return; }
   let good = isBest;
   if (!good){
-    D.busy = true; D.last = m; D.msg = {t:`${sk(m.san)}… detektív to preveruje.`, cls:""}; detRender();
+    D.busy = true; D.last = m; D.msg = {t: en ? `${sk(m.san)}… detective is checking it.` : `${sk(m.san)}… detektív to preveruje.`, cls:""}; detRender();
     try { good = detGood(fen, await evalFen(c.fen(), 12), c); } catch(e){ good = false; }
     D.busy = false; if (DET !== D) return;
   }
   if (good) return detFinish(true, m);
   SFX.play("bad"); D.tries++; c.load(fen); D.last = null; D.flash = {sqs:[m.to], cls:"wrong"};
   const det = {...((dayDoc() || {}).det || {gid:D.g.id, ply:D.i + 1}), tries:D.tries};
-  if (D.tries >= 3){ D.reveal = true; D.arrow = {...uciArrow(best), color:"best"}; D.msg = {t:`${sk(m.san)} nie je ono. Správne bolo ${uciSan(fen, best)}. Zahraj ho podľa šípky.`, cls:"bad"}; }
-  else D.msg = {t:`${sk(m.san)} nie je ono. ${D.tries === 2 ? "Posledný pokus! Pozri sa na šachy, brania a hrozby." : "Skús ešte raz."}`, cls:"bad"};
+  if (D.tries >= 3){ D.reveal = true; D.arrow = {...uciArrow(best), color:"best"}; D.msg = {t: en ? `${sk(m.san)} isn't it. Best was ${uciSan(fen, best)}. Play it following the arrow.` : `${sk(m.san)} nie je ono. Správne bolo ${uciSan(fen, best)}. Zahraj ho podľa šípky.`, cls:"bad"}; }
+  else D.msg = {t: en ? `${sk(m.san)} isn't it. ${D.tries === 2 ? "Last try! Check checks, captures, and threats." : "Try again."}` : `${sk(m.san)} nie je ono. ${D.tries === 2 ? "Posledný pokus! Pozri sa na šachy, brania a hrozby." : "Skús ešte raz."}`, cls:"bad"};
   updateDay({det});
   detRender();
 }
 function detFinish(ok, m){
-  const D = DET;
+  const D = DET, en = _isEn();
   D.done = true; D.ok = ok; D.okSan = sk(m.san); D.last = m; D.flash = null; D.arrow = null;
-  D.msg = ok ? {t:`${sk(m.san)} – správne!`, cls:"ok"} : {t:"Hotovo. Nabudúce to nájdeš sám!", cls:"ok"};
+  D.msg = ok ? {t:`${sk(m.san)} – ${en ? "correct!" : "správne!"}`, cls:"ok"} : {t: en ? "Done. Next time you'll find it yourself!" : "Hotovo. Nabudúce to nájdeš sám!", cls:"ok"};
   const det = {...((dayDoc() || {}).det || {gid:D.g.id, ply:D.i + 1}), tries:D.tries, ok};
   updateDay({det, review:true});
   if (ok) confetti(); else SFX.play("ok");
@@ -6426,7 +6566,8 @@ $("#prog").addEventListener("click", e => {
 $("#prog").addEventListener("keydown", e => { const mo = e.target.closest("[data-motif]"); if (mo && e.key === "Enter") openMotif(mo.dataset.motif); });
 $("#pz-filter").onchange = e => { S.pzFilter = e.target.value || null; PZ = null; nextPuzzle(); };
 
-$("#pl-open").innerHTML += Object.entries(OPENINGS).map(([k,o]) => `<option value="${k}">${esc(o.name)} – ${o.side === "w" ? "za bieleho" : "za čierneho"}</option>`).join("");
+{ const en = _isEn(), OP_EN = {italian:"Italian Game", evans:"Evans Gambit", friedliver:"Fried Liver Attack", scotch:"Scotch Game", spanish:"Ruy Lopez (Spanish Game)", london:"London System", qgd:"Queen's Gambit", sicilian:"Sicilian Defense", carokann:"Caro-Kann", scandinavian:"Scandinavian Defense", twoknights:"Two Knights Defense (vs Italian)"};
+  $("#pl-open").innerHTML += Object.entries(OPENINGS).map(([k,o]) => `<option value="${k}">${esc(en && OP_EN[k] ? OP_EN[k] : o.name)} – ${en ? (o.side === "w" ? "as White" : "as Black") : (o.side === "w" ? "za bieleho" : "za čierneho")}</option>`).join(""); }
 $("#pl-var").value = PLS.v != null ? PLS.v : "1"; $("#pl-var").onchange = savePlaySettings;
 $("#pl-level").value = PLS.level; $("#pl-color").value = PLS.color; $("#pl-open").value = PLS.open; $("#pl-hints").checked = !!PLS.hints;
 $("#pl-open").onchange = () => { const o = OPENINGS[$("#pl-open").value]; if (o){ $("#pl-color").value = o.side; ls.set("sach.lastOpen", $("#pl-open").value); } savePlaySettings(); };
@@ -6539,7 +6680,7 @@ $("#ad-hint").onclick = () => {
   const k = Object.keys(AD.node || {})[0];
   if (!k) return;
   AD.hintUsed = true; AD.hint = k.slice(0, 2);
-  AD.msg = {t:"Nápoveda: pozri na označenú figúrku.", cls:""};
+  AD.msg = {t: _isEn() ? "Hint: look at the highlighted piece." : "Nápoveda: pozri na označenú figúrku.", cls:""};
   adRender();
 };
 $("#ad-show").onclick = () => {
@@ -6551,7 +6692,7 @@ $("#ad-show").onclick = () => {
   if (m) SFX.move(m);
   AD.arrow = {from:k.slice(0,2), to:k.slice(2,4), color:"best"};
   AD.done = true; AD.hint = null;
-  AD.msg = {t:`Správny ťah bol ${m ? sk(m.san) : k}.`, cls:""};
+  AD.msg = {t: _isEn() ? `The best move was ${m ? sk(m.san) : k}.` : `Správny ťah bol ${m ? sk(m.san) : k}.`, cls:""};
   AD.why = typeof jyExplain === "function" ? jyExplain(AD.x) : "";
   adRender();
 };
@@ -6576,17 +6717,17 @@ $("#an-del").onclick = () => { const n = AN.cur, p = n.parent; if (!p) return; p
 $("#an-reset").onclick = () => openAnalysis(START_FEN, [], 0, "w");
 $("#an-loadfen").onclick = () => {
   const f = $("#an-fen").value.trim(), v = new Chess().validate_fen(f);
-  if (!v.valid){ $("#an-msg").textContent = "Neplatný FEN: " + v.error; return; }
+  if (!v.valid){ $("#an-msg").textContent = (_isEn() ? "Invalid FEN: " : "Neplatný FEN: ") + v.error; return; }
   $("#an-msg").textContent = ""; openAnalysis(f, [], 0, f.split(" ")[1]);
 };
 $("#an-loadpgn").onclick = () => {
-  const g = loadGame($("#an-pgn").value); if (!g){ $("#an-msg").textContent = "PGN sa nepodarilo prečítať."; return; }
+  const g = loadGame($("#an-pgn").value); if (!g){ $("#an-msg").textContent = _isEn() ? "Could not read PGN." : "PGN sa nepodarilo prečítať."; return; }
   const G = gameData(g); $("#an-msg").textContent = "";
   openAnalysis(G.fens[0], G.moves.map(m => m.uci), 0, "w");
 };
 $("#an-copy").onclick = () => {
-  const t = $("#an-out"), fb = () => { t.select(); $("#an-copymsg").textContent = "Označené – stlač Ctrl+C."; };
-  try { navigator.clipboard.writeText(t.value).then(() => $("#an-copymsg").textContent = "Skopírované.", fb); } catch(e){ fb(); }
+  const t = $("#an-out"), en = _isEn(), fb = () => { t.select(); $("#an-copymsg").textContent = en ? "Selected – press Ctrl+C." : "Označené – stlač Ctrl+C."; };
+  try { navigator.clipboard.writeText(t.value).then(() => $("#an-copymsg").textContent = en ? "Copied." : "Skopírované.", fb); } catch(e){ fb(); }
 };
 
 /* ================= štart ================= */
@@ -6600,15 +6741,16 @@ if (window.PUBLIC_EDITION && $("#about-btn")){
   $("#about-btn").hidden = false;
   $("#about-btn").onclick = () => {
     $("#sfx-pop").hidden = true;
+    const en = _isEn();
     const body = `<div class="stack" style="gap:8px;text-align:left">
       <h2 style="margin:0">${esc(document.title || "Pawn's Quest")}</h2>
-      <p style="margin:0">Offline šachový tréning bez reklám, bez účtov a bez sledovania. Všetky profily a partie sa ukladajú výlučne v tvojom zariadení.</p>
-      <p class="sub" style="margin:0"><b>Otvorené dáta a licencie:</b><br>
+      <p style="margin:0">${en ? "Offline chess training with no ads, no accounts, and no tracking. All profiles and games are stored locally on your device." : "Offline šachový tréning bez reklám, bez účtov a bez sledovania. Všetky profily a partie sa ukladajú výlučne v tvojom zariadení."}</p>
+      <p class="sub" style="margin:0"><b>${en ? "Open data & licenses:" : "Otvorené dáta a licencie:"}</b><br>
         • Lichess Puzzle Database – CC0 1.0 Public Domain<br>
         • Stockfish – GNU GPLv3<br>
         • chess.js – BSD-2-Clause</p>
     </div>`;
-    if (typeof jyModal === "function") jyModal(body, [["Zavrieť", "primary", null]]);
+    if (typeof jyModal === "function") jyModal(body, [[en ? "Close" : "Zavrieť", "primary", null]]);
   };
 }
 /* nálepky: pri každej novej správe vyber náhodnú pózu (16. 11.) */
