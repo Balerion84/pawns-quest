@@ -3437,6 +3437,11 @@ STUDIES.endgame = {"name":"Základné koncovky","side":"w","intro":"Základné k
 
 
 if (window.PUBLIC_OPENING_STUDIES) Object.assign(STUDIES, (_isEn() && window.PUBLIC_OPENING_STUDIES_FULL_EN) ? window.PUBLIC_OPENING_STUDIES_FULL_EN : window.PUBLIC_OPENING_STUDIES);
+if (window.PUBLIC_TACTICS_EXTRA && STUDIES.tactics){
+  const ex = (_isEn() && window.PUBLIC_TACTICS_EXTRA_EN) ? window.PUBLIC_TACTICS_EXTRA_EN : window.PUBLIC_TACTICS_EXTRA;
+  const fi = STUDIES.tactics.chapters.findIndex(c => c.id === "fork");
+  if (fi >= 0) STUDIES.tactics.chapters.splice(fi + 1, 0, ...ex); else STUDIES.tactics.chapters.push(...ex);
+}
 if (window.PUBLIC_EDITION){
   delete STUDIES.evans; delete STUDIES.friedliver;
   for (const bid of ["stEvans", "fcl"]){ const bi = BADGES.findIndex(b => b.id === bid); if (bi >= 0) BADGES.splice(bi, 1); }
@@ -5370,7 +5375,7 @@ function hzRenderEnd(){
    Nové údaje dňa: d.tr = {dt: vyriešené úlohy Ďatľa dnes, dtc: dokončené cykly dnes}, d.det = detektív. */
 const TR_THEMES = [
   {t:"Nekryté figúrky a hrozby", tip:"Po každom súperovom ťahu sa spýtaj: Čo mi hrozí? Ktorá figúrka je nekrytá?", st:[], dt:["li_hang_1","li_def_1","li_trap_1"]},
-  {t:"Dvojitý útok (vidlička)", tip:"Jedna figúrka napadne dve naraz. Súper zachráni len jednu.", st:[["tactics","fork"]], dt:["li_fork_1","li_fork_2","li_fork_3"]},
+  {t:"Dvojitý útok (vidlička)", tip:"Jedna figúrka napadne dve naraz. Súper zachráni len jednu.", st:[["tactics","fork"],["tactics","nfork"],["tactics","qfork"],["tactics","rfork"],["tactics","bfork"]], dt:["li_fork_1","li_fork_2","li_fork_3"]},
   {t:"Väzba a röntgen", tip:"Zviazaná figúrka sa nesmie alebo nechce pohnúť. Zaútoč na ňu ešte raz.", st:[["tactics","pin1"],["tactics","pin2"],["tactics","skewer"]], dt:["li_pin_1","li_pin_2","li_pin_3","li_skew_1","li_skew_2"]},
   {t:"Mat 2 ťahmi a obrana proti matu", tip:"Najprv pozri všetky šachy, potom brania, potom hrozby.", st:[["tactics","smother"],["tactics","checks"]], dt:["li_m2_1","li_m2_2","li_m2_3","li_m2_4","li_back_1"]},
   {t:"Odkrytý útok", tip:"Figúrka odíde z cesty a odkryje útok figúrky, ktorá stojí za ňou.", st:[], dt:["li_disc_1","li_disc_2"]},

@@ -946,9 +946,82 @@ const RAW = {
   }
 };
 
+const TACTICS_EXTRA_RAW = [
+  {
+    id: "nfork",
+    fen: "r3k3/ppp2ppp/4q3/3N4/8/8/PPP2PPP/6K1 w - - 0 1",
+    titleSk: "Vidlička jazdcom",
+    titleEn: "Knight Fork",
+    introSk: "Jazdec je majster vidličiek – vie preskočiť ostatné figúrky a naraz napadnúť kráľa, dámu aj vežu! Pozri sa na pole c7 vedľa čierneho kráľa e8.",
+    introEn: "The knight is the king of forks – it leaps over pieces to attack the king, queen, and rook all at once! Look at the c7 square next to Black's king on e8.",
+    moves: [
+      { m: "Nxc7+", qSk: "Skoč jazdcom na pole, odkiaľ dáš šach kráľovi a zároveň napadneš dámu aj vežu!", qEn: "Jump your knight to give check and attack both the queen and the rook!", cSk: "1.Jxc7+! Rodinná vidlička: jazdec útočí naraz na kráľa e8, dámu e6 aj vežu a8!", cEn: "1.Nxc7+! A royal family fork: attacking the e8 king, e6 queen, and a8 rook all at once!", a: [["c7","e8","best"], ["c7","e6","best"], ["c7","a8","chart"]] },
+      { m: "Kd7", cSk: "1…Kd7. Kráľ musí ustúpiť zo šachu – dámu zachrániť nedokáže.", cEn: "1…Kd7. The king must escape check and cannot save the queen." },
+      { m: "Nxe6", qSk: "Zober čiernu dámu!", qEn: "Capture Black's queen!", cSk: "2.Jxe6! Získal si celú dámu za jazdca – obrovská výhoda!", cEn: "2.Nxe6! You won the queen for a knight – a huge advantage!" }
+    ],
+    endSk: "Jazdec miluje polia, z ktorých dáva šach a súčasne dosiahne na dámu alebo vežu. Vždy kontroluj, či súperove drahé figúrky nestoja na políčkach rovnakej farby!",
+    endEn: "Knights love squares that give check while aiming at a queen or rook. Always watch for enemy pieces standing on squares of the same color!"
+  },
+  {
+    id: "qfork",
+    fen: "r5k1/6p1/7p/8/8/8/5PPP/3Q2K1 w - - 0 1",
+    titleSk: "Dvojitý útok dámou",
+    titleEn: "Queen Double Attack",
+    introSk: "Dáma vie ísť všetkými smermi, preto ľahko vytvorí dvojitý útok: jedným ťahom dá šach kráľovi a druhým smerom napadne nekrytú figúrku.",
+    introEn: "The queen moves in every direction, making it a master of double attacks: giving check to the king while targeting an undefended piece at the same time.",
+    moves: [
+      { m: "Qd5+", qSk: "Nájdi pole v strede, odkiaľ dáma dá šach kráľovi g8 a zároveň napadne nekrytú vežu a8!", qEn: "Find the central square where your queen checks the g8 king and attacks the undefended a8 rook!", cSk: "1.Dd5+! Dvojitý útok po dvoch diagonálach: šach na g8 a útok na nekrytú vežu a8!", cEn: "1.Qd5+! A double attack along two diagonals: check on g8 and an attack on the undefended a8 rook!", a: [["d5","g8","best"], ["d5","a8","best"]] },
+      { m: "Kh7", cSk: "1…Kh7. Kráľ sa musí schovať pred šachom a veža na a8 ostala sama.", cEn: "1…Kh7. The king has to step out of check, leaving the a8 rook behind." },
+      { m: "Qxa8", qSk: "Zober nekrytú vežu!", qEn: "Capture the undefended rook!", cSk: "2.Dxa8! Čistá veža zadarmo vďaka dvojitému útoku dámou.", cEn: "2.Qxa8! A whole rook won for free thanks to the queen double attack." }
+    ],
+    endSk: "Keď vidíš nekrytú súperovu figúrku, hľadaj pole, z ktorého na ňu dáma zaútočí SO ŠACHOM. Súper stihne zachrániť iba kráľa!",
+    endEn: "Whenever you spot an undefended enemy piece, look for a queen move that attacks it WITH CHECK. Your opponent can only save the king!"
+  },
+  {
+    id: "rfork",
+    fen: "8/6p1/7p/1n4k1/8/8/5PPP/3R2K1 w - - 0 1",
+    titleSk: "Dvojitý útok vežou",
+    titleEn: "Rook Double Attack",
+    introSk: "Aj veža vie dávať dvojité hrozby – po radoch a stĺpcoch! Pozri sa na piaty rad: stoja na ňom čierny kráľ g5 aj nekrytý jazdec b5.",
+    introEn: "A rook can deliver double attacks along ranks and files too! Look at the 5th rank: both Black's g5 king and the undefended b5 knight are sitting on it.",
+    moves: [
+      { m: "Rd5+", qSk: "Postav vežu medzi kráľa a jazdca na piaty rad so šachom!", qEn: "Slide your rook onto the 5th rank to check the king and attack the knight!", cSk: "1.Vd5+! Šach kráľovi na g5 a súčasne útok na nekrytého jazdca b5!", cEn: "1.Rd5+! Check to the g5 king and an attack on the undefended b5 knight at the same time!", a: [["d5","g5","best"], ["d5","b5","best"]] },
+      { m: "Kf6", cSk: "1…Kf6. Kráľ musel ujsť zo šachu.", cEn: "1…Kf6. The king had to step out of check." },
+      { m: "Rxb5", qSk: "Zober jazdca!", qEn: "Capture the knight!", cSk: "2.Vxb5! Biely vyhral celého jazdca zadarmo.", cEn: "2.Rxb5! White won a full knight for free." }
+    ],
+    endSk: "Keď stoja dve súperove figúrky (najmä kráľ a nekrytá figúrka) na jednom rade alebo stĺpci, skontroluj, či medzi ne nevie skočiť tvoja veža!",
+    endEn: "When two enemy pieces – especially the king and an undefended piece – share a rank or file, check if your rook can jump right between them!"
+  },
+  {
+    id: "bfork",
+    fen: "2r3k1/6pp/4p3/8/8/1B6/5PPP/6K1 w - - 0 1",
+    titleSk: "Dvojitý útok strelcom",
+    titleEn: "Bishop Double Attack",
+    introSk: "Strelec útočí po dvoch diagonálach naraz ako nožnice! Čierny kráľ g8 aj nekrytá veža c8 stoja na svetlých poliach – tvoj strelec ich dokáže chytiť jedným ťahom.",
+    introEn: "A bishop strikes along two diagonals at once like a pair of scissors! Both Black's g8 king and the undefended c8 rook sit on light squares – your bishop can catch them both.",
+    moves: [
+      { m: "Bxe6+", qSk: "Ktorým ťahom strelca dáš šach kráľovi g8 a zároveň napadneš vežu c8?", qEn: "Which bishop move checks the g8 king and attacks the c8 rook at the same time?", cSk: "1.Sxe6+! Strelec zobral pešiaka, dal šach kráľovi g8 a druhou diagonálou napadol vežu c8!", cEn: "1.Bxe6+! The bishop captures the pawn, checks the g8 king, and attacks the c8 rook on the other diagonal!", a: [["e6","g8","best"], ["e6","c8","best"]] },
+      { m: "Kf8", cSk: "1…Kf8. Kráľ musel uhnúť zo šachu.", cEn: "1…Kf8. The king had to move out of check." },
+      { m: "Bxc8", qSk: "Zober vežu!", qEn: "Capture the rook!", cSk: "2.Sxc8! Vyhral si celú vežu vďaka dvojitému útoku strelcom.", cEn: "2.Bxc8! You won a full rook with a crisp bishop double attack." }
+    ],
+    endSk: "Keď stoja súperov kráľ a nekrytá figúrka na poliach rovnakej farby, hľadaj pole, kde sa ich diagonály pretínajú – tam patrí tvoj strelec!",
+    endEn: "When the enemy king and an undefended piece stand on squares of the same color, find where their diagonals cross – that's the magic square for your bishop!"
+  }
+];
+
 const built = buildPack(RAW);
 window.PUBLIC_OPENING_STUDIES = built.sk;
 window.PUBLIC_OPENING_STUDIES_EN = built.en;
 window.PUBLIC_OPENING_STUDIES_FULL_EN = built.fullEn;
 window.PUBLIC_OPENINGS_META = built.meta;
+window.PUBLIC_TACTICS_EXTRA = TACTICS_EXTRA_RAW.map(ch => ({
+  id: ch.id, title: ch.titleSk, fen: ch.fen, intro: ch.introSk,
+  moves: ch.moves.map(mv => { const r = { m: mv.m }; if (mv.qSk) r.q = mv.qSk; if (mv.cSk) r.c = mv.cSk; if (mv.a) r.a = mv.a; return r; }),
+  end: ch.endSk
+}));
+window.PUBLIC_TACTICS_EXTRA_EN = TACTICS_EXTRA_RAW.map(ch => ({
+  id: ch.id, title: ch.titleEn, fen: ch.fen, intro: ch.introEn,
+  moves: ch.moves.map(mv => { const r = { m: mv.m }; if (mv.qEn) r.q = mv.qEn; if (mv.cEn) r.c = mv.cEn; if (mv.a) r.a = mv.a; return r; }),
+  end: ch.endEn
+}));
 })();
