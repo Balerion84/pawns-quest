@@ -73,7 +73,8 @@ window.I18N_APPLY_CONTENT = function(studiesObj){
     }
   }
   if (studiesObj){
-    for (const [sid, stEn] of Object.entries(STUDIES_EN)){
+    const allEn = Object.assign({}, STUDIES_EN, window.PUBLIC_OPENING_STUDIES_EN || {});
+    for (const [sid, stEn] of Object.entries(allEn)){
       const st = studiesObj[sid];
       if (!st) continue;
       st.name = stEn.name;

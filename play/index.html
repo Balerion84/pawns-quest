@@ -11,6 +11,7 @@
 <script src="lichess_rush.js"></script>
 <script src="lichess_datel.js"></script>
 <script src="lichess_hrozby.js"></script>
+<script src="public_openings_studies.js"></script>
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="native.css">
 <style>
@@ -4088,9 +4089,10 @@ STUDIES.endgame = {"name":"Základné koncovky","side":"w","intro":"Základné k
 
 
 
+if (window.PUBLIC_OPENING_STUDIES) Object.assign(STUDIES, window.PUBLIC_OPENING_STUDIES);
 if (_isEn() && typeof window.I18N_APPLY_CONTENT === "function") try { window.I18N_APPLY_CONTENT(STUDIES); } catch(e){}
 const STUDY_GLYPH = {friedliver:"♞", scandinavian:"♛", italian:"♝", tactics:"♟", endgame:"♚"};
-for (const [k, st] of Object.entries(STUDIES)) if (k !== "evans" && k !== "tactics" && k !== "endgame")
+for (const [k, st] of Object.entries(STUDIES)) if (!st.noBadge && k !== "evans" && k !== "tactics" && k !== "endgame")
   BADGES.push({g:"Otvorenia a Stockfish", id:"st_" + k, glyph:STUDY_GLYPH[k] || "♝", t:`Znalec: ${st.name}`, d:`Prejdi všetky kapitoly štúdie ${st.name}.`, v:s => (s.study || {})[k] || 0, of:st.chapters.length});
 let ST = null;
 const studyDoc = sid => S.studyprog.find(d => d.id === S.pid + "_" + sid) || null;
@@ -6566,8 +6568,9 @@ $("#prog").addEventListener("click", e => {
 $("#prog").addEventListener("keydown", e => { const mo = e.target.closest("[data-motif]"); if (mo && e.key === "Enter") openMotif(mo.dataset.motif); });
 $("#pz-filter").onchange = e => { S.pzFilter = e.target.value || null; PZ = null; nextPuzzle(); };
 
-{ const en = _isEn(), OP_EN = {italian:"Italian Game", evans:"Evans Gambit", friedliver:"Fried Liver Attack", scotch:"Scotch Game", spanish:"Ruy Lopez (Spanish Game)", london:"London System", qgd:"Queen's Gambit", sicilian:"Sicilian Defense", carokann:"Caro-Kann", scandinavian:"Scandinavian Defense", twoknights:"Two Knights Defense (vs Italian)"};
-  $("#pl-open").innerHTML += Object.entries(OPENINGS).map(([k,o]) => `<option value="${k}">${esc(en && OP_EN[k] ? OP_EN[k] : o.name)} – ${en ? (o.side === "w" ? "as White" : "as Black") : (o.side === "w" ? "za bieleho" : "za čierneho")}</option>`).join(""); }
+{ if (window.PUBLIC_OPENINGS_META) for (const [k, v] of Object.entries(window.PUBLIC_OPENINGS_META)) if (!OPENINGS[k]) OPENINGS[k] = v;
+  const en = _isEn(), OP_EN = {italian:"Italian Game", evans:"Evans Gambit", friedliver:"Fried Liver Attack", scotch:"Scotch Game", spanish:"Ruy Lopez (Spanish Game)", london:"London System", qgd:"Queen's Gambit", qg:"Queen's Gambit", kingsgambit:"King's Gambit", sicilian:"Sicilian Defense", carokann:"Caro-Kann Defense", french:"French Defense", kid:"King's Indian Defense", scandinavian:"Scandinavian Defense", twoknights:"Two Knights Defense (vs Italian)"};
+  $("#pl-open").innerHTML += Object.entries(OPENINGS).map(([k,o]) => `<option value="${k}">${esc(en ? (o.nameEn || OP_EN[k] || o.name) : o.name)} – ${en ? (o.side === "w" ? "as White" : "as Black") : (o.side === "w" ? "za bieleho" : "za čierneho")}</option>`).join(""); }
 $("#pl-var").value = PLS.v != null ? PLS.v : "1"; $("#pl-var").onchange = savePlaySettings;
 $("#pl-level").value = PLS.level; $("#pl-color").value = PLS.color; $("#pl-open").value = PLS.open; $("#pl-hints").checked = !!PLS.hints;
 $("#pl-open").onchange = () => { const o = OPENINGS[$("#pl-open").value]; if (o){ $("#pl-color").value = o.side; ls.set("sach.lastOpen", $("#pl-open").value); } savePlaySettings(); };
