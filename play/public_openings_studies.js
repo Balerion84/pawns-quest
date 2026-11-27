@@ -5,13 +5,13 @@
 "use strict";
 
 function buildPack(def){
-  const sk = {}, en = {}, meta = {};
+  const sk = {}, en = {}, fullEn = {}, meta = {};
   for (const [id, o] of Object.entries(def)){
     sk[id] = {
       name: o.nameSk,
       side: o.side,
       open: id,
-      noBadge: true,
+      noBadge: !o.keepBadge,
       intro: o.introSk,
       chapters: o.chapters.map(ch => ({
         id: ch.id,
@@ -26,6 +26,27 @@ function buildPack(def){
           return r;
         }),
         end: ch.endSk
+      }))
+    };
+    fullEn[id] = {
+      name: o.nameEn,
+      side: o.side,
+      open: id,
+      noBadge: !o.keepBadge,
+      intro: o.introEn,
+      chapters: o.chapters.map(ch => ({
+        id: ch.id,
+        title: ch.titleEn,
+        pre: ch.pre || "",
+        intro: ch.introEn,
+        moves: ch.moves.map(mv => {
+          const r = { m: mv.m };
+          if (mv.qEn) r.q = mv.qEn;
+          if (mv.cEn) r.c = mv.cEn;
+          if (mv.a) r.a = mv.a;
+          return r;
+        }),
+        end: ch.endEn
       }))
     };
     en[id] = {
@@ -45,10 +66,211 @@ function buildPack(def){
     };
     meta[id] = { name: o.nameSk, nameEn: o.nameEn, side: o.side, lines: o.lines };
   }
-  return { sk, en, meta };
+  return { sk, en, fullEn, meta };
 }
 
 const RAW = {
+  italian: {
+    nameSk: "Talianska hra",
+    nameEn: "Italian Game",
+    side: "w",
+    keepBadge: true,
+    introSk: "Jedno z najobľúbenejších otvorení za bieleho po 1.e4 e5. Rýchlo vyvinieš jazdca na f3, strelca na c4 (mieri na slabé pole f7), bezpečne urobíš rošádu a bojuješ o stred.",
+    introEn: "One of the most popular openings for White after 1.e4 e5. Develop quickly with Nf3 and Bc4 targeting the weak f7 square, castle safely, and fight for the center.",
+    lines: [
+      [5, "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O a6 a4 Ba7 Re1 O-O h3"],
+      [4, "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Bd2 Bxd2+ Nbxd2"],
+      [4, "e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Bc5 c3 d6 O-O a6 Bb3"],
+      [3, "e4 e5 Nf3 Nc6 Bc4 Bc5 O-O Nf6 d3 d6 c3 O-O"]
+    ],
+    chapters: [
+      {
+        id: "rules",
+        titleSk: "Tichý Talian (Giuoco Pianissimo)",
+        titleEn: "Quiet Italian (Giuoco Pianissimo)",
+        introSk: "Najhranejšia talianska zostava: ovládni stred, vyviň jazdca a strelca na c4, postav pevnú pešiakovú reťaz c3–d3–e4 a schovaj kráľa rošádou.",
+        introEn: "The most popular Italian setup: claim the center, bring out Nf3 and Bc4, build a sturdy c3–d3–e4 pawn chain, and castle to safety.",
+        moves: [
+          { m: "e4", qSk: "Obsaď stred kráľovským pešiakom.", qEn: "Claim the center with your e-pawn.", cSk: "1.e4! Otvára cestu strelcovi f1 aj dáme.", cEn: "1.e4! Opens diagonals for both the f1 bishop and the queen." },
+          { m: "e5", cSk: "1…e5. Čierny odpovedá rovnako.", cEn: "1…e5. Black answers in the center too." },
+          { m: "Nf3", qSk: "Vyviň jazdca s útokom na pešiaka e5.", qEn: "Develop your knight while attacking the e5 pawn.", cSk: "2.Jf3! Vývin s hrozbou – najlepší spôsob, ako zapojiť figúrku.", cEn: "2.Nf3! Developing with an attack is the best way to bring out pieces.", a: [["f3","e5","chart"]] },
+          { m: "Nc6", cSk: "2…Jc6. Čierny bráni pešiaka e5.", cEn: "2…Nc6. Black defends the e5 pawn." },
+          { m: "Bc4", qSk: "Postav strelca na pole, odkiaľ mieri na najslabšie pole čierneho f7.", qEn: "Place your bishop where it aims straight at Black's weakest square, f7.", cSk: "3.Sc4! Talianska hra. Pole f7 bráni iba čierny kráľ.", cEn: "3.Bc4! The Italian Game. Only Black's king guards f7.", a: [["c4","f7","chart"]] },
+          { m: "Bc5", cSk: "3…Sc5. Čierny vyvíja svojho strelca oproti.", cEn: "3…Bc5. Black develops the bishop symmetrically." },
+          { m: "c3", qSk: "Podopri stred a priprav si pole pre budúci postup d4!", qEn: "Support the center and prepare a future d4 push!", cSk: "4.c3! Stráži polia b4 a d4 a zároveň dáva strelcovi c4 únikové pole c2.", cEn: "4.c3! Guards b4 and d4 while giving your c4 bishop an escape square on c2." },
+          { m: "Nf6", cSk: "4…Jf6. Čierny vyvíja jazdca a útočí na e4.", cEn: "4…Nf6. Black develops a knight and attacks e4." },
+          { m: "d3", qSk: "Bráň pešiaka e4 pokojne pešiakom d3.", qEn: "Defend the e4 pawn calmly with d3.", cSk: "5.d3! Pevná reťaz c3–d3–e4. Nič ti nehrozí a čoskoro urobíš rošádu.", cEn: "5.d3! A rock-solid c3–d3–e4 chain. Everything is protected." },
+          { m: "d6", cSk: "5…d6. Čierny spevňuje svoj stred.", cEn: "5…d6. Black reinforces the center too." },
+          { m: "O-O", qSk: "Schovaj kráľa do bezpečia!", qEn: "Tuck your king away safely!", cSk: "6.O-O! Stred, vývin aj rošáda sú splnené – ideálny štart partie.", cEn: "6.O-O! Center, development, and castling are all done – a textbook start." }
+        ],
+        endSk: "V Tichom Talianovi máš pevný stred, bezpečného kráľa a skvelého strelca na c4 pripraveného na ďalší plán.",
+        endEn: "In the Quiet Italian you have a sturdy center, a safe king, and an active c4 bishop ready for the middlegame."
+      },
+      {
+        id: "home",
+        titleSk: "Úkryt pre strelca a cesta jazdca",
+        titleEn: "A Safe Home for the Bishop",
+        pre: "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O",
+        introSk: "Strelec c4 je tvoj klenot. Čierny ho často skúša odohnať ťahom …a6 a …b5 alebo vymeniť cez …Ja5. Pozri, ako si ho uchrániš a zapojíš posledné figúrky.",
+        introEn: "Your c4 bishop is a star piece. Black often tries to chase it with …a6 and …b5 or trade it with …Na5. See how to keep it safe and finish development.",
+        moves: [
+          { m: "a6", cSk: "6…a6. Čierny chystá úkryt pre svojho strelca na a7 a možno aj …b5.", cEn: "6…a6. Black makes room on a7 and hints at …b5." },
+          { m: "a4", qSk: "Zastav …b5 a zároveň uvoľni pre svojho strelca úkryt na a2!", qEn: "Stop …b5 and create a cozy retreat square on a2 for your bishop!", cSk: "7.a4! Teraz už čierny nemôže hrať …b5 a tvoj strelec má pripravené pole a2.", cEn: "7.a4! Stops …b5 and clears a2 so your bishop can never be trapped.", a: [["c4","a2","chart"]] },
+          { m: "Ba7", cSk: "7…Sa7. Čierny schováva svojho strelca vopred.", cEn: "7…Ba7. Black tucks the bishop away too." },
+          { m: "Re1", qSk: "Postav vežu na e-stĺpec za pešiaka e4 a uvoľni pole f1.", qEn: "Put your rook on the e-file behind e4 and free up the f1 square.", cSk: "8.Ve1! Veža kryje e4 a uvoľňuje pole f1 pre presun jazdca b1–d2–f1–g3.", cEn: "8.Re1! Defends e4 and clears f1 for the classic Nb1–d2–f1–g3 maneuver." },
+          { m: "O-O", cSk: "8…O-O. Čierny urobil rošádu.", cEn: "8…O-O. Black castles." },
+          { m: "h3", qSk: "Zober čiernemu strelcovi pole g4 a urob kráľovi okienko.", qEn: "Take away the g4 square from Black's bishop and give your king air.", cSk: "9.h3! Zabraňuje nepríjemnej väzbe …Sg4 na tvojho jazdca f3.", cEn: "9.h3! Prevents the annoying …Bg4 pin on your f3 knight." },
+          { m: "h6", cSk: "9…h6. Čierny robí to isté proti tvojmu strelcovi.", cEn: "9…h6. Black stops Bg5 in return." },
+          { m: "Nbd2", qSk: "Vyviň posledného jazdca – odtiaľ môže putovať cez f1 na g3!", qEn: "Develop your last knight – from here it can route via f1 to g3!", cSk: "10.Jbd2! Všetky figúrky sú pripravené a biely má harmonickú pozíciu.", cEn: "10.Nbd2! Every piece is coordinated and White has a super harmonious setup." }
+        ],
+        endSk: "Ťahy a4, Ve1, h3 a Jbd2 sú stavebnými kameňmi moderného Talianskeho otvorenia.",
+        endEn: "a4, Re1, h3, and Nbd2 are the classic building blocks of the modern Italian Game."
+      },
+      {
+        id: "center",
+        titleSk: "Ostrý stred: Giuoco Piano s 5.d4!",
+        titleEn: "Strikes in the Center: 5.d4!",
+        pre: "e4 e5 Nf3 Nc6 Bc4 Bc5",
+        introSk: "Nechceš hrať pomaly? Po 4.c3 Jf6 môžeš hneď udrieť v strede ťahom 5.d4! Otvoríš línie pre strelcov a získaš silný stred.",
+        introEn: "Want a sharper fight? After 4.c3 Nf6, strike in the center immediately with 5.d4! You open lines for your pieces and build a big center.",
+        moves: [
+          { m: "c3", qSk: "Priprav úder v strede pešiakom c3.", qEn: "Prepare your central strike with c3.", cSk: "4.c3! Podopiera chystaný postup d4.", cEn: "4.c3! Supports the upcoming d4 push." },
+          { m: "Nf6", cSk: "4…Jf6. Čierny útočí na e4.", cEn: "4…Nf6. Black attacks e4." },
+          { m: "d4", qSk: "Udri rovno do stredu a napadní čierneho strelca!", qEn: "Strike right in the center and attack Black's bishop!", cSk: "5.d4! Najostrejšia klasická línia – útočí na e5 aj c5 naraz.", cEn: "5.d4! The classic sharp line – attacking both e5 and c5 at once.", a: [["d4","c5","chart"]] },
+          { m: "exd4", cSk: "5…exd4. Čierny berie v strede.", cEn: "5…exd4. Black captures in the center." },
+          { m: "cxd4", qSk: "Vezmi späť pešiakom a vybuduj silnú dvojicu pešiakov e4 + d4!", qEn: "Recapture with the pawn to build a powerful e4 + d4 center!", cSk: "6.cxd4! Krásny stred a opäť útočíš na strelca c5.", cEn: "6.cxd4! A gorgeous pawn center, attacking the c5 bishop again." },
+          { m: "Bb4+", cSk: "6…Sb4+. Čierny dáva šach, aby získal čas.", cEn: "6…Bb4+. Black throws in a check to gain time." },
+          { m: "Bd2", qSk: "Zakry šach strelcom a ponúkni výmenu!", qEn: "Block the check with your bishop and offer a trade!", cSk: "7.Sd2! Jednoduchá a spoľahlivá odpoveď, ktorá drží pešiaka e4 v bezpečí.", cEn: "7.Bd2! Clean and solid, keeping the e4 pawn well protected." },
+          { m: "Bxd2+", cSk: "7…Sxd2+. Čierny mení strelcov.", cEn: "7…Bxd2+. Black trades bishops." },
+          { m: "Nbxd2", qSk: "Vezmi strelca jazdcom, aby si ho zároveň vyvinul!", qEn: "Recapture with the knight to develop it at the same time!", cSk: "8.Jbxd2! Biely má silný stred, rýchly vývin a hrozí postúpiť d5 alebo e5.", cEn: "8.Nbxd2! White has a big center, fast development, and is ready to castle." }
+        ],
+        endSk: "Po 4.c3 a 5.d4 získaš veľký stred a živú, otvorenú partiu plnú taktiky!",
+        endEn: "With 4.c3 and 5.d4 you grab a big center and a lively, open game full of tactics!"
+      },
+      {
+        id: "twoknights",
+        titleSk: "Proti 3…Jf6 (Obrana dvoch jazdcov)",
+        titleEn: "Meeting 3…Nf6 (Two Knights)",
+        pre: "e4 e5 Nf3 Nc6 Bc4 Nf6",
+        introSk: "Čierny nezahral 3…Sc5, ale hneď napadol tvojho pešiaka e4 jazdcom 3…Jf6! Nemusíš sa vrhať do divokých pascí – pokojné 4.d3 ti dá istú a silnú pozíciu.",
+        introEn: "Instead of 3…Bc5, Black immediately attacks your e4 pawn with 3…Nf6! No need for risky gambits – a calm 4.d3 gives you a rock-solid game.",
+        moves: [
+          { m: "d3", qSk: "Bráň pešiaka e4 pokojne pešiakom a otvor cestu strelcovi c1.", qEn: "Defend e4 calmly and open the diagonal for your c1 bishop.", cSk: "4.d3! Pevná a spoľahlivá voľba – pešiak e4 je bezpečne krytý.", cEn: "4.d3! Solid and reliable – the e4 pawn is completely safe." },
+          { m: "Bc5", cSk: "4…Sc5. Čierny teraz vyvíja strelca na c5.", cEn: "4…Bc5. Black now brings the bishop out to c5." },
+          { m: "c3", qSk: "Postav známe c3, ktoré stráži d4 a b4.", qEn: "Play the familiar c3 to control d4 and b4.", cSk: "5.c3! Prešli sme priamo do našej obľúbenej talianskej štruktúry.", cEn: "5.c3! We've transposed right into our favorite Italian setup." },
+          { m: "d6", cSk: "5…d6. Čierny otvára cestu strelcovi c8.", cEn: "5…d6. Black opens the diagonal for the c8 bishop." },
+          { m: "O-O", qSk: "Urob rošádu!", qEn: "Castle kingside!", cSk: "6.O-O! Kráľ v bezpečí, veža pripravená na e1.", cEn: "6.O-O! King is safe and the rook is ready for e1." },
+          { m: "a6", cSk: "6…a6. Čierny pripravuje úkryt pre strelca.", cEn: "6…a6. Black prepares a retreat on a7." },
+          { m: "Bb3", qSk: "Ustúp strelcom vopred na b3, nech naň pešiak b5 nikdy nedosiahne!", qEn: "Tuck your bishop back to b3 early so …b5 can never bother it!", cSk: "7.Sb3! Strelec stále mieri na f7 a biely má výbornú, bezstarostnú hru.", cEn: "7.Bb3! Still aiming at f7, with an easy and comfortable game for White." }
+        ],
+        endSk: "Proti 3…Jf6 stačí pokojné 4.d3 a prejdeš presne do talianskych pozícií, ktoré už poznáš!",
+        endEn: "Against 3…Nf6, a calm 4.d3 steers the game straight into the Italian positions you already know!"
+      }
+    ]
+  },
+  scandinavian: {
+    nameSk: "Škandinávska obrana",
+    nameEn: "Scandinavian Defense",
+    side: "b",
+    keepBadge: true,
+    introSk: "Priamočiara obrana za čierneho proti 1.e4: hneď v prvom ťahu napadneš stred ťahom 1…d5! Naučíš sa klasickú líniu s 3…Da5, modernú 3…Dd6 aj 2…Jf6.",
+    introEn: "A direct, fighting defense for Black against 1.e4: challenge the center on move 1 with 1…d5! Learn the classic 3…Qa5, the modern 3…Qd6, and 2…Nf6.",
+    lines: [
+      [5, "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4 Bf5 O-O e6"],
+      [4, "e4 d5 exd5 Qxd5 Nc3 Qd6 d4 Nf6 Nf3 a6 Be2 Nc6 O-O Bf5"],
+      [4, "e4 d5 exd5 Nf6 d4 Nxd5 Nf3 Bg4 Be2 e6 O-O Be7"],
+      [3, "e4 d5 e5 c5 Nf3 Nc6 c3 Bg4 Be2 e6"]
+    ],
+    chapters: [
+      {
+        id: "qa5",
+        titleSk: "Klasická línia s 3…Da5",
+        titleEn: "The Classic 3…Qa5 Setup",
+        introSk: "Najhranejšia línia Škandinávskej obrany: dáma síce vyjde skoro, ale na a5 má bezpečné pole a po …c6 a …Sf5 postavíš pevnú pevnosť.",
+        introEn: "The most played Scandinavian line: your queen comes out early, finds a safe perch on a5, and …c6 + …Bf5 build a rock-solid fortress.",
+        moves: [
+          { m: "e4", cSk: "1.e4. Biely obsadzuje stred.", cEn: "1.e4. White claims the center." },
+          { m: "d5", qSk: "Udri hneď na pešiaka e4!", qEn: "Challenge the e4 pawn right on move 1!", cSk: "1…d5! Škandinávska obrana – okamžite kladieš bielemu otázku v strede.", cEn: "1…d5! The Scandinavian Defense – challenging White's center immediately.", a: [["d5","e4","chart"]] },
+          { m: "exd5", cSk: "2.exd5. Biely berie.", cEn: "2.exd5. White captures." },
+          { m: "Qxd5", qSk: "Zober pešiaka späť dámou.", qEn: "Recapture the pawn with your queen.", cSk: "2…Dxd5! Dáma je v strede a tvoj svetlopoľný strelec má voľnú cestu von.", cEn: "2…Qxd5! Your light-squared bishop now has an open diagonal." },
+          { m: "Nc3", cSk: "3.Jc3. Biely napáda tvoju dámu s vývinom.", cEn: "3.Nc3. White develops and attacks your queen." },
+          { m: "Qa5", qSk: "Ustúp dámou na bezpečné pole na dámskom krídle, odkiaľ viaže jazdca c3!", qEn: "Retreat your queen to a safe square on the queenside eyeing c3!", cSk: "3…Da5! Klasické pole – dáma má pokoj a pozerá na bieleho jazdca.", cEn: "3…Qa5! The classic square – safe and keeping an eye on c3." },
+          { m: "d4", cSk: "4.d4. Biely obsadzuje stred.", cEn: "4.d4. White takes central space." },
+          { m: "Nf6", qSk: "Vyviň kráľovského jazdca na f6.", qEn: "Develop your kingside knight to f6.", cSk: "4…Jf6! Kontroluje stredové polia d5 a e4.", cEn: "4…Nf6! Controls the key central d5 and e4 squares." },
+          { m: "Nf3", cSk: "5.Jf3. Biely vyvíja jazdca.", cEn: "5.Nf3. White develops a knight." },
+          { m: "c6", qSk: "Otvor dáme únikovú chodbičku na c7/d8 a stráž pole b5!", qEn: "Give your queen a retreat path to c7/d8 and guard the b5 square!", cSk: "5…c6! Kľúčový ťah – stráži b5 aj d5 a dáma sa kedykoľvek vráti domov.", cEn: "5…c6! Essential move – guards b5 and d5 and keeps a safe path home for the queen." },
+          { m: "Bc4", cSk: "6.Sc4. Biely vyvíja strelca.", cEn: "6.Bc4. White develops the bishop." },
+          { m: "Bf5", qSk: "Vyveď strelca c8 von EŠTE PRED ťahom …e6!", qEn: "Bring your c8 bishop outside the pawn chain BEFORE playing …e6!", cSk: "6…Sf5! Aktívny strelec mimo pešiakovej reťaze – teraz už môžeš hrať …e6.", cEn: "6…Bf5! Active outside the pawn chain – now …e6 won't trap it.", a: [["f5","c2","chart"]] },
+          { m: "O-O", cSk: "7.O-O. Biely urobil rošádu.", cEn: "7.O-O. White castles." },
+          { m: "e6", qSk: "Spevni stred a otvor cestu druhému strelcovi!", qEn: "Solidify the center and open the diagonal for your f8 bishop!", cSk: "7…e6! Pevná štruktúra c6–e6, aktívny strelec f5 a čoskoro rošáda.", cEn: "7…e6! A rock-solid c6–e6 structure, active f5 bishop, and castling next." }
+        ],
+        endSk: "Zostava Da5 + c6 + Sf5 + e6 + Jf6 je spoľahlivá a ľahko zapamätateľná obrana proti 1.e4.",
+        endEn: "Qa5 + c6 + Bf5 + e6 + Nf6 is a super reliable, easy-to-remember defense against 1.e4."
+      },
+      {
+        id: "qd6",
+        titleSk: "Moderný ústup 3…Dd6",
+        titleEn: "The Modern 3…Qd6 Retreat",
+        pre: "e4 d5 exd5 Qxd5 Nc3",
+        introSk: "Dnes je veľmi obľúbený aj ústup 3…Dd6! Dáma ostáva blízko stredu, pripravíš …a6, rýchlo vyvinieš oba jazdce aj strelca a často urobíš veľkú rošádu.",
+        introEn: "Another super popular modern choice is 3…Qd6! Your queen stays near the center, …a6 stops Nb5, and you develop super fast toward castling.",
+        moves: [
+          { m: "Qd6", qSk: "Ustúp dámou na d6, blízko stredu aj kráľovského krídla.", qEn: "Retreat your queen to d6, staying close to the center.", cSk: "3…Dd6! Moderná Škandinávska – dáma pomáha kontrolovať e5 a nezavadzia pešiakovi c7.", cEn: "3…Qd6! The modern Scandinavian – supports …e5 ideas and stays flexible." },
+          { m: "d4", cSk: "4.d4. Biely stavia stred.", cEn: "4.d4. White takes the center." },
+          { m: "Nf6", qSk: "Vyviň kráľovského jazdca na f6.", qEn: "Develop your kingside knight to f6.", cSk: "4…Jf6! Rýchly vývin.", cEn: "4…Nf6! Fast development." },
+          { m: "Nf3", cSk: "5.Jf3. Biely vyvíja jazdca.", cEn: "5.Nf3. White develops." },
+          { m: "a6", qSk: "Zober bielemu jazdcovi pole b5, aby nemohol naháňať tvoju dámu!", qEn: "Take away the b5 square so White's knight can't harass your queen!", cSk: "5…a6! Dôležitá prevencia proti Jb5 a zároveň pripravuje miesto na dámskom krídle.", cEn: "5…a6! Prevents Nb5 attacking your queen and keeps your setup tidy." },
+          { m: "Be2", cSk: "6.Se2. Biely pripravuje rošádu.", cEn: "6.Be2. White prepares to castle." },
+          { m: "Nc6", qSk: "Vyviň druhého jazdca na c6 – tlačí na d4!", qEn: "Develop your other knight to c6 – pressuring d4!", cSk: "6…Jc6! Keďže si nehral …c6, jazdec má svoje najlepšie pole c6 voľné.", cEn: "6…Nc6! Because you didn't play …c6, your knight gets its best square!" },
+          { m: "O-O", cSk: "7.O-O. Biely urobil rošádu.", cEn: "7.O-O. White castles." },
+          { m: "Bf5", qSk: "Vyviň svetlopoľného strelca von na f5 a priprav veľkú rošádu!", qEn: "Develop your light-squared bishop to f5 and prepare …O-O-O!", cSk: "7…Sf5! Aktívna hra – čierny je pripravený na …O-O-O a rýchlu protihru.", cEn: "7…Bf5! Active pieces – Black is ready for …O-O-O and lively counterplay." }
+        ],
+        endSk: "S 3…Dd6 máš rýchly vývin, voľné pole c6 pre jazdca a aktívnu hru po oboch krídlach!",
+        endEn: "With 3…Qd6 you get rapid development, c6 free for your knight, and lively play!"
+      },
+      {
+        id: "nf6",
+        titleSk: "Moderná Škandinávska (2…Jf6)",
+        titleEn: "Modern Scandinavian (2…Nf6)",
+        pre: "e4 d5 exd5",
+        introSk: "Nechceš vyťahovať dámu v druhom ťahu? Zahraj 2…Jf6! Pešiaka d5 si zoberieš späť jazdcom, vyvinieš strelca na g4 a bezpečne urobíš rošádu.",
+        introEn: "Don't want to bring your queen out on move 2? Play 2…Nf6! Recapture on d5 with the knight, bring out your bishop to g4, and castle cleanly.",
+        moves: [
+          { m: "Nf6", qSk: "Namiesto dámy vyviň jazdca a priprav si spätné branie na d5!", qEn: "Develop your knight instead of the queen to recapture on d5!", cSk: "2…Jf6! Biely teraz nemôže získať tempo útokom na tvoju dámu.", cEn: "2…Nf6! White doesn't get a free tempo attacking your queen." },
+          { m: "d4", cSk: "3.d4. Biely obsadzuje stred a vracia pešiaka za rýchly vývin.", cEn: "3.d4. White claims the center instead of clinging to the pawn." },
+          { m: "Nxd5", qSk: "Zober pešiaka na d5 späť jazdcom!", qEn: "Recapture the d5 pawn with your knight!", cSk: "3…Jxd5! Jazdec stojí krásne v strede.", cEn: "3…Nxd5! Your knight sits proudly in the center." },
+          { m: "Nf3", cSk: "4.Jf3. Biely vyvíja jazdca.", cEn: "4.Nf3. White develops a knight." },
+          { m: "Bg4", qSk: "Vyviň strelca c8 von s väzbou na bieleho jazdca!", qEn: "Develop your c8 bishop outside the chain and pin White's knight!", cSk: "4…Sg4! Skvelý aktívny ťah – strelec je vonku ešte pred …e6.", cEn: "4…Bg4! Great active move – the bishop is outside before …e6.", a: [["g4","d1","chart"]] },
+          { m: "Be2", cSk: "5.Se2. Biely ruší väzbu.", cEn: "5.Be2. White breaks the pin." },
+          { m: "e6", qSk: "Otvor cestu strelcovi f8 a spevni pozíciu.", qEn: "Open the diagonal for your f8 bishop and fortify the center.", cSk: "5…e6! Všetko je pevné a harmonické.", cEn: "5…e6! Solid and harmonious." },
+          { m: "O-O", cSk: "6.O-O. Biely urobil rošádu.", cEn: "6.O-O. White castles." },
+          { m: "Be7", qSk: "Vyviň druhého strelca a priprav rošádu!", qEn: "Develop your other bishop and get ready to castle!", cSk: "6…Se7! Čierny má pokojnú, zdravú hru bez jediného zbytočného ťahu dámou.", cEn: "6…Be7! A clean, healthy position without moving your queen early." }
+        ],
+        endSk: "2…Jf6 je skvelá voľba, ak máš rád rýchly vývin ľahkých figúr bez skorého výletu dámou.",
+        endEn: "2…Nf6 is a great choice if you love smooth piece development without moving the queen early."
+      },
+      {
+        id: "push",
+        titleSk: "Keď biely neberie (2.e5)",
+        titleEn: "When White Pushes 2.e5",
+        pre: "e4 d5",
+        introSk: "Niekedy biely nevezme na d5, ale postúpi 2.e5. To je pre teba super správa – okamžite udri …c5 a vyveď strelca von na f5 alebo g4!",
+        introEn: "Sometimes White avoids capturing and pushes 2.e5. Great news for you – immediately strike with …c5 and bring your c8 bishop outside the pawn chain!",
+        moves: [
+          { m: "e5", cSk: "2.e5. Biely sa vyhol výmene a získal priestor.", cEn: "2.e5. White avoids the trade and pushes forward." },
+          { m: "c5", qSk: "Hneď zaútoč na biely stred pešiakom c5!", qEn: "Immediately fight for the center with …c5!", cSk: "2…c5! Zaberáš dôležité pole d4 a pripravuješ …Jc6.", cEn: "2…c5! Claims central space and prepares …Nc6." },
+          { m: "Nf3", cSk: "3.Jf3. Biely vyvíja jazdca.", cEn: "3.Nf3. White develops." },
+          { m: "Nc6", qSk: "Vyviň jazdca na c6 s tlakom na e5 a d4!", qEn: "Develop your knight to c6, pressuring e5 and d4!", cSk: "3…Jc6! Aktívny vývin.", cEn: "3…Nc6! Active development." },
+          { m: "c3", cSk: "4.c3. Biely pripravuje d4.", cEn: "4.c3. White prepares d4." },
+          { m: "Bg4", qSk: "Vyveď svetlopoľného strelca von s väzbou na jazdca f3 EŠTE PRED …e6!", qEn: "Bring your c8 bishop out to pin the f3 knight BEFORE …e6!", cSk: "4…Sg4! Máš vylepšenú Francúzsku obranu, pretože tvoj strelec c8 ostal aktívne vonku!", cEn: "4…Bg4! You got a dream French Defense with your c8 bishop active outside the pawn chain!", a: [["g4","d1","chart"]] },
+          { m: "Be2", cSk: "5.Se2. Biely ruší väzbu.", cEn: "5.Be2. White unpins." },
+          { m: "e6", qSk: "Teraz zavri reťaz pešiakom e6 a uvoľni druhého strelca!", qEn: "Now play …e6 to solidify your center and free your f8 bishop!", cSk: "5…e6! Čierny stojí výborne a čoskoro dokončí vývin.", cEn: "5…e6! Black has a fantastic, rock-solid position." }
+        ],
+        endSk: "Proti 2.e5 hraj rýchle …c5, …Jc6 a …Sg4 (alebo …Sf5) ešte pred …e6 – dostaneš výbornú hru!",
+        endEn: "Against 2.e5, play …c5, …Nc6, and …Bg4 (or …Bf5) before …e6 for a super comfortable game!"
+      }
+    ]
+  },
   london: {
     nameSk: "Londýnsky systém",
     nameEn: "London System",
@@ -727,5 +949,6 @@ const RAW = {
 const built = buildPack(RAW);
 window.PUBLIC_OPENING_STUDIES = built.sk;
 window.PUBLIC_OPENING_STUDIES_EN = built.en;
+window.PUBLIC_OPENING_STUDIES_FULL_EN = built.fullEn;
 window.PUBLIC_OPENINGS_META = built.meta;
 })();

@@ -363,6 +363,7 @@
     ["Odohraj 10 partií v tréningu otvorení.", "Play 10 opening training games."],
     ["Taliansky majster", "Italian master"],
     ["10 partií v Talianskej hre (aj Evans a Fried Liver).", "10 games in the Italian Game (incl. Evans & Fried Liver)."],
+    ["10 partií v Talianskej hre.", "10 games in the Italian Game."],
     ["Prvá výhra nad počítačom", "First win vs engine"],
     ["Poraz Stockfish bez vracania ťahov.", "Beat Stockfish without takebacks."],
     ["Znalec Evansovho gambitu", "Evans Gambit scholar"],
@@ -487,8 +488,8 @@
     ["Vyber si majstrovskú partiu.", "Choose a master game."],
 
     /* Štúdie – intro a názvy kapitol */
-    ["Vyber si kapitolu. Odporúčame ísť po poradí.", "Choose a chapter. We recommend going in order."],
-    ["Taktika – sovietsky šlabikár", "Tactics – Basics"],
+    ["Vyber si kapitolu. Odporúčame ísť po poradí.", "Choose a chapter. We recommend going in order."],
+    ["Základy taktiky", "Tactics Basics"],
     ["Evansov gambit je odvážne otvorenie v Talianskej hre. Biely daruje pešiaka a za to rýchlo vyvinie figúrky a postaví silný stred. V každej kapitole hráš za bieleho a hľadáš správne ťahy.", "The Evans Gambit is a bold opening in the Italian Game. White sacrifices a pawn for rapid development and a strong center. In each chapter you play White and find the right moves."],
     ["Prečo 4.b4?", "Why 4.b4?"],
     ["Hlavný variant", "Main line"],
